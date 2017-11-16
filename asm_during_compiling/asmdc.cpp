@@ -2,6 +2,7 @@
 #include <array>
 #include <tuple>
 #include <cstdio>
+#include <cassert>
 
 //! Immediate
 template <size_t s> struct Immediate_type;
@@ -99,7 +100,8 @@ struct Displacement_type<4> {
 
 template <size_t _size, typename Displacement_type<_size>::type x>
 struct Displacement {
-    constexpr static typename Displacement_type<_size>::type val = x;
+    using type = typename Displacement_type<_size>::type;
+    constexpr static type val = x;
     constexpr static size_t size = _size; 
     constexpr static uint8_t mode = Displacement_type<_size>::mode;
 };
@@ -181,49 +183,96 @@ constexpr auto gen_flag_array ()
     }
 };
 
-template <typename T, typename U>
+template <typename T, typename U, typename... Args>
 struct Bytes;
 
-template <uint8_t... byte, bool... is_variable>
-struct Bytes<ByteArray<byte...>, FlagArray<is_variable...>> {
+template <uint8_t... byte, bool... is_variable, typename... Args>
+struct Bytes<ByteArray<byte...>, FlagArray<is_variable...>, Args...> {
     static_assert(sizeof...(byte) == sizeof...(is_variable));
     constexpr static size_t size = sizeof...(byte);
     constexpr static std::array<uint8_t, sizeof...(byte)> data = { byte... };
     constexpr static std::array<bool, sizeof...(is_variable)> flag = { is_variable... };
 
     static void print () {
+	printf("code: ");
 	for (auto i = 0u; i < data.size(); ++i) {
 	    printf("%02x ", data[i]);
 	}
 	printf("\n");
+	//printf("flag: ");
+	//for (auto i = 0u; i < flag.size(); ++i) {
+	//    printf("%2c ", flag[i]? 'T' : 'F');
+	//}
+	//printf("\n");
+    }
+
+    static void write (Args... args)
+    {
+	printf("code: ");
+	write_internal(0, args...);
+    }
+
+    private:
+    template <typename Arg_1st, typename... Arg_rem>
+    static void write_internal (uint8_t idx, Arg_1st arg, Arg_rem... args)
+    {
+	assert(idx < size);
+	if (flag[idx] == true) {
+	    for (auto i = 0u; i < sizeof(arg); ++i) {
+		assert(flag[idx] == true);
+		printf("%02x ", arg & 0xFF);
+		arg = arg >> 8;
+		++idx;
+	    }
+	    write_internal(idx, args...);
+	} else {
+	    printf("%02x ", data[idx]);
+	    write_internal(idx + 1, arg, args...);
+	}
+    }
+
+    static void write_internal (uint8_t idx)
+    {
+	for (auto i = idx; i < size; i++) {
+	    printf("%02x ", data[i]);
+	}
+	printf("\n");
+	return;
     }
 };
 
 template <>
 struct Bytes<void, void> {};
 
-template <uint8_t... ls, uint8_t... rs, bool... lis_variable, bool... ris_variable>
-constexpr auto operator+ (Bytes<ByteArray<ls...>, FlagArray<lis_variable...>>,
-			  Bytes<ByteArray<rs...>, FlagArray<ris_variable...>>)
+template <typename Arg, uint8_t... ls, bool... lfs>
+constexpr auto mark_arg (Bytes<ByteArray<ls...>, FlagArray<lfs...>>)
 {
-    return Bytes<ByteArray<ls..., rs...>, FlagArray<lis_variable..., ris_variable...>>{};
+    return Bytes<ByteArray<ls...>, FlagArray<lfs...>, Arg>{};
 }
 
-template <uint8_t... ls, bool... lfs>
-constexpr auto operator+ (Bytes<ByteArray<ls...>, FlagArray<lfs...>>,
+template <uint8_t... ls, uint8_t... rs, bool... lis_variable, bool... ris_variable, typename... largs, typename... rargs>
+constexpr auto operator+ (Bytes<ByteArray<ls...>, FlagArray<lis_variable...>, largs...>,
+			  Bytes<ByteArray<rs...>, FlagArray<ris_variable...>, rargs...>)
+{
+    return Bytes<ByteArray<ls..., rs...>, FlagArray<lis_variable..., ris_variable...>, largs..., rargs...>{};
+}
+
+template <uint8_t... ls, bool... lfs, typename... largs>
+constexpr auto operator+ (Bytes<ByteArray<ls...>, FlagArray<lfs...>, largs...>,
 			  Bytes<void, void>)
 {
-    return Bytes<ByteArray<ls...>, FlagArray<lfs...>>{};
+    return Bytes<ByteArray<ls...>, FlagArray<lfs...>, largs...>{};
 }
 
-template <uint8_t... rs, bool... rfs>
+template <uint8_t... rs, bool... rfs, typename... rargs>
 constexpr auto operator+ (Bytes<void, void>,
-			  Bytes<ByteArray<rs...>, FlagArray<rfs...>>)
+			  Bytes<ByteArray<rs...>, FlagArray<rfs...>, rargs...>)
 {
-    return Bytes<ByteArray<rs...>, FlagArray<rfs...>>{};
+    return Bytes<ByteArray<rs...>, FlagArray<rfs...>, rargs...>{};
 }
 
-template <uint8_t l, uint8_t... ls, bool lf, bool... lfs, uint8_t r, uint8_t... rs, bool rf, bool... rfs>
+template <uint8_t l, uint8_t... ls, bool lf, bool... lfs,
+	  uint8_t r, uint8_t... rs, bool rf, bool... rfs>
 constexpr auto operator== (Bytes<ByteArray<l, ls...>, FlagArray<lf, lfs...>>,
 			   Bytes<ByteArray<r, rs...>, FlagArray<rf, rfs...>>)
 {
@@ -247,28 +296,29 @@ constexpr auto operator== (Bytes<ByteArray<ls...>, FlagArray<lfs...>>, Bytes<voi
     return false;
 }
 
-template <size_t size, long long x>
+template <size_t size, long long x, bool flag = false>
 constexpr auto to_bytes ()
 {
     if constexpr (size <= 0) {
 	return Bytes<void, void>{};
     }
     else {
-	return Bytes<ByteArray<x & 0xFF>, FlagArray<false>>{} + to_bytes<size - 1, (x >> 8)>();
+	return Bytes<ByteArray<x & 0xFF>, FlagArray<flag>>{} + to_bytes<size - 1, (x >> 8), flag>();
     }
 }
 
 template <size_t s, typename Immediate_type<s>::type x>
 constexpr auto to_bytes (Immediate<s, x>)
 {
-    return to_bytes<Immediate<s, x>::size, x>();
+    using ArgType = typename Immediate<s, x>::type;
+    return mark_arg<ArgType>(to_bytes<Immediate<s, x>::size, x, true>());
 }
 
 template <size_t size, typename Displacement_type<size>::type x>
 constexpr auto to_bytes (Displacement<size, x>)
 {
     using disp = Displacement<size, x>;
-    return to_bytes<disp::size, x>();
+    return mark_arg<typename Displacement<size, x>::type>(to_bytes<disp::size, x, true>());
 }
 
 //! aux
@@ -771,6 +821,7 @@ int main ()
     {
         auto c = ADD(b_[rax + Imm32<0x12345678>], Imm8<0x12>);
 	c.print();
+	c.write(0x78563412, 0xCd);
     }
 
     //{
