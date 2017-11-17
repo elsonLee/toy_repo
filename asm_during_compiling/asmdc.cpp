@@ -11,29 +11,34 @@ template <> struct Immediate_type<2> { using type = int16_t; };
 template <> struct Immediate_type<4> { using type = int32_t; };
 template <> struct Immediate_type<8> { using type = int64_t; };
 
-template <size_t s, typename Immediate_type<s>::type x>
+template <size_t s, typename Immediate_type<s>::type x, bool is_var = false>
 struct Immediate {
     using type = decltype(x);
     static constexpr size_t size = sizeof(type);
     static constexpr type value = x;
+    static constexpr bool is_variable = is_var;
 };
 
-template <Immediate_type<1>::type x> constexpr Immediate<1, x> Imm8{};
-template <Immediate_type<2>::type x> constexpr Immediate<2, x> Imm16{};
-template <Immediate_type<4>::type x> constexpr Immediate<4, x> Imm32{};
-template <Immediate_type<8>::type x> constexpr Immediate<8, x> Imm64{};
+template <Immediate_type<1>::type x> constexpr Immediate<1, x, false> Imm8{};
+template <Immediate_type<2>::type x> constexpr Immediate<2, x, false> Imm16{};
+template <Immediate_type<4>::type x> constexpr Immediate<4, x, false> Imm32{};
+template <Immediate_type<8>::type x> constexpr Immediate<8, x, false> Imm64{};
+constexpr auto VarImm8  = Immediate<1, 0x0, true>{};
+constexpr auto VarImm16 = Immediate<2, 0x0, true>{};
+constexpr auto VarImm32 = Immediate<4, 0x0, true>{};
+constexpr auto VarImm64 = Immediate<8, 0x0, true>{};
 
-template <size_t s, typename Immediate_type<s>::type x>
-constexpr bool is_imm8  (Immediate<s, x> imm) { return imm.size == 1; }
+template <size_t s, typename Immediate_type<s>::type x, bool is_var>
+constexpr bool is_imm8  (Immediate<s, x, is_var> imm) { return imm.size == 1; }
 
-template <size_t s, typename Immediate_type<s>::type x>
-constexpr bool is_imm16 (Immediate<s, x> imm) { return imm.size == 2; }
+template <size_t s, typename Immediate_type<s>::type x, bool is_var>
+constexpr bool is_imm16 (Immediate<s, x, is_var> imm) { return imm.size == 2; }
 
-template <size_t s, typename Immediate_type<s>::type x>
-constexpr bool is_imm32 (Immediate<s, x> imm) { return imm.size == 4; }
+template <size_t s, typename Immediate_type<s>::type x, bool is_var>
+constexpr bool is_imm32 (Immediate<s, x, is_var> imm) { return imm.size == 4; }
 
-template <size_t s, typename Immediate_type<s>::type x>
-constexpr bool is_imm64 (Immediate<s, x> imm) { return imm.size == 8; }
+template <size_t s, typename Immediate_type<s>::type x, bool is_var>
+constexpr bool is_imm64 (Immediate<s, x, is_var> imm) { return imm.size == 8; }
 
 //! Register
 template <size_t s, size_t i>
@@ -98,25 +103,26 @@ struct Displacement_type<4> {
     constexpr static uint8_t mode = 0b10;
 };
 
-template <size_t _size, typename Displacement_type<_size>::type x>
+template <size_t _size, typename Displacement_type<_size>::type x, bool is_var = false>
 struct Displacement {
     using type = typename Displacement_type<_size>::type;
     constexpr static type val = x;
     constexpr static size_t size = _size; 
     constexpr static uint8_t mode = Displacement_type<_size>::mode;
+    constexpr static bool is_variable = is_var;
 };
 
-using NoDisp =  Displacement<0, 0>;
-template <typename Displacement_type<1>::type x>
-using Disp8  = Displacement<1, x>;
-template <typename Displacement_type<4>::type x>
-using Disp32 = Displacement<4, x>;
+using NoDisp =  Displacement<0, 0, false>;
+template <typename Displacement_type<1>::type x, bool is_var>
+using Disp8  = Displacement<1, x, is_var>;
+template <typename Displacement_type<4>::type x, bool is_var>
+using Disp32 = Displacement<4, x, is_var>;
 
-template <size_t s, typename Displacement_type<s>::type x>
-constexpr auto is_disp8 (Displacement<s, x>) { return s == 1; }
+template <size_t s, typename Displacement_type<s>::type x, bool is_var>
+constexpr auto is_disp8 (Displacement<s, x, is_var>) { return s == 1; }
 
-template <size_t s, typename Displacement_type<s>::type x>
-constexpr auto is_disp32 (Displacement<s, x>) { return s == 4; }
+template <size_t s, typename Displacement_type<s>::type x, bool is_var>
+constexpr auto is_disp32 (Displacement<s, x, is_var>) { return s == 4; }
 
 template <size_t s>
 struct Scale
@@ -307,18 +313,26 @@ constexpr auto to_bytes ()
     }
 }
 
-template <size_t s, typename Immediate_type<s>::type x>
-constexpr auto to_bytes (Immediate<s, x>)
+template <size_t s, typename Immediate_type<s>::type x, bool is_var>
+constexpr auto to_bytes (Immediate<s, x, is_var>)
 {
-    using ArgType = typename Immediate<s, x>::type;
-    return mark_arg<ArgType>(to_bytes<Immediate<s, x>::size, x, true>());
+    if constexpr (is_var) {
+	using ArgType = typename Immediate<s, x, is_var>::type;
+    	return mark_arg<ArgType>(to_bytes<Immediate<s, x, is_var>::size, x, true>());
+    } else {
+    	return to_bytes<Immediate<s, x, is_var>::size, x, false>();
+    }
 }
 
-template <size_t size, typename Displacement_type<size>::type x>
-constexpr auto to_bytes (Displacement<size, x>)
+template <size_t size, typename Displacement_type<size>::type x, bool is_var>
+constexpr auto to_bytes (Displacement<size, x, is_var>)
 {
-    using disp = Displacement<size, x>;
-    return mark_arg<typename Displacement<size, x>::type>(to_bytes<disp::size, x, true>());
+    using disp = Displacement<size, x, is_var>;
+    if constexpr (is_var) {
+	return mark_arg<typename Displacement<size, x, is_var>::type>(to_bytes<disp::size, x, true>());
+    } else {
+	return to_bytes<disp::size, x, false>();
+    }
 }
 
 //! aux
@@ -381,11 +395,11 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 }
 
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
 {
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
-    using imm = Immediate<imms, x>;
+    using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
     static_assert(digit >= 0 && digit <= 7);
     return rex<w, digit, 0, get_rex_b(r1{})>();
@@ -409,11 +423,11 @@ constexpr auto rex (Memory<s, r1, r2, scale, disp>, Register<s, i>)
 }
 
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
 {
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
-    using imm = Immediate<imms, x>;
+    using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
     static_assert(digit >= 0 && digit <= 7);
     return rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
@@ -454,8 +468,9 @@ constexpr auto sib (Memory<s, r1, r2, scale, disp>)
     return sib<scale::mode, r2::index, r1::index>();
 }
 
-template <uint8_t reg, size_t s, size_t i, size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto modrm (Register<s, i>, Immediate<imms, x>)
+template <uint8_t reg, size_t s, size_t i,
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto modrm (Register<s, i>, Immediate<imms, x, is_var>)
 {
     return modrm<0b11, reg, Register<s, i>::index % 8>();
 }
@@ -468,24 +483,24 @@ constexpr auto modrm (Register<s1, i1>, Register<s2, i2>)
 
 //! [disp32]
 template <uint8_t digit, size_t s, typename Displacement_type<4>::type d,
-          size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d>>, Immediate<imms, x>)
+          size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Immediate<imms, x, is_var>)
 {
-    return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d>{});
+    return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d, is_var>{});
 }
 
 //! mem <--> imm
 template <uint8_t digit, size_t s, typename r1, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
 {
     return modrm<disp::mode, digit, r1::index % 8>() + to_bytes(disp{});
 }
 
 //! mem <--> imm
 template <uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
 {
     using mem = Memory<s, r1, r2, scale, disp>;
     if constexpr (r1::index == 0b100)
@@ -527,10 +542,10 @@ struct _
 	return mem{};
     }
 
-    template <size_t imms, typename Immediate_type<imms>::type x>
-    constexpr auto operator[] (Immediate<imms, x>)
+    template <size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+    constexpr auto operator[] (Immediate<imms, x, is_var>)
     {
-	using disp = Displacement<imms, x>;
+	using disp = Displacement<imms, x, is_var>;
 	return Memory<size, NoReg, NoReg, NoScale, disp>{};
     }
 
@@ -565,27 +580,27 @@ constexpr auto operator""_b ()
 
 // TODO
 template <size_t s, size_t i,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto operator+ (Register<s, i>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto operator+ (Register<s, i>, Immediate<imms, x, is_var>)
 {
     using r = Register<s, i>;
-    using imm = Immediate<imms, x>;
-    return Memory<s, r, NoReg, NoScale, Displacement<imms, x>>{};
+    using imm = Immediate<imms, x, is_var>;
+    return Memory<s, r, NoReg, NoScale, Displacement<imms, x, is_var>>{};
 }
 
 template <size_t s, size_t i,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto operator* (Register<s, i>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto operator* (Register<s, i>, Immediate<imms, x, is_var>)
 {
     using reg = Register<s, i>;
     return Memory<s, NoReg, reg, Scale<x>, NoDisp>{};
 }
 
 template <size_t s, typename r1, typename r2, typename scale,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto operator+ (Memory<s, r1, r2, scale, NoDisp>, Immediate<imms, x>)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto operator+ (Memory<s, r1, r2, scale, NoDisp>, Immediate<imms, x, is_var>)
 {
-    using disp = Displacement<imms, x>;
+    using disp = Displacement<imms, x, is_var>;
     return Memory<s, r1, r2, scale, disp>{};
 }
 
@@ -633,8 +648,8 @@ constexpr auto modrm (Memory<memsize, r1, r2, scale, disp>, Register<regsize, i>
 // ADD r32, imm32 -- 81 /0 id
 // ADD r64, imm8  -- REX.W + 83 /0 ib
 // ADD r64, imm32 -- REX.W + 81 /0 id
-template <size_t s, size_t i, size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto ADD (Register<s, i> reg, Immediate<imms, x> imm)
+template <size_t s, size_t i, size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto ADD (Register<s, i> reg, Immediate<imms, x, is_var> imm)
 {
     if constexpr (is_r8(reg) && is_imm8(imm))
     {
@@ -701,8 +716,8 @@ constexpr auto ADD (Register<s1, i1> reg1, Register<s2, i2> reg2)
 // add m64, imm8  -- REX.W + 83 /0 ib
 // add m64, imm32 -- REX.W + 81 /0 id
 template <size_t s, typename r1, typename r2,  typename scale, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x>
-constexpr auto ADD (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x> imm)
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto ADD (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_var> imm)
 {
     if constexpr (is_m8(mem) && is_imm8(imm))
     {
@@ -818,11 +833,24 @@ int main ()
     // TODO: double check
     //static_assert(ADD(w_[Imm32<0x34>], Imm8<0x12>)  == Bytes<0x66, 0x83, 0x05, 0x34, 0x00, 0x00, 0x00, 0x12>{});
 
-    {
-        auto c = ADD(b_[rax + Imm32<0x12345678>], Imm8<0x12>);
-	c.print();
-	c.write(0x78563412, 0xCd);
-    }
+    //{
+    //    auto c = ADD(b_[rax + var(Imm32<0x12345678>)], var(Imm8<0x12>));
+    //    c.print();
+    //    c.write(0x12, 0xcd);
+    //    c.write(0x1234, 0xcd);
+    //    c.write(0x123456, 0xcd);
+    //}
+
+    //{
+        auto c = ADD(b_[rax + Imm32<0x12345678>], VarImm8);
+        c.print();
+        c.write(0xcd);
+
+
+
+        ADD(b_[rax + Imm32<0x12345678>], Imm8<0x12>).write();
+        ADD(b_[rax + Imm32<0x12345678>], VarImm8).write(0xcd);
+    //}
 
     //{
     //    auto c = ADD(Mem8<rax, NoReg, NoScale, NoDisp>{}, Imm8<0x12>);
