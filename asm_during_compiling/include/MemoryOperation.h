@@ -31,6 +31,30 @@ _<2, int16_t> w_{};
 _<4, int32_t> d_{};
 _<8, int64_t> q_{};
 
+template <char x, char... xs>
+constexpr auto get_first_ch ()
+{
+    return x;
+}
+
+template <char... n>
+constexpr auto operator""_x ()
+{
+    static_assert(sizeof...(n) == 1);
+    constexpr auto c = get_first_ch<n...>();
+    if constexpr (c == '1') {
+        return Immediate<1, 1>{};
+    } else if constexpr (c == '2') {
+        return Immediate<1, 2>{};
+    } else  if constexpr (c == '4') {
+        return Immediate<1, 4>{};
+    } else  if constexpr (c == '8') {
+        return Immediate<1, 8>{};
+    } else {
+
+    }
+}
+
 // TODO
 template <size_t s, size_t i,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
@@ -40,12 +64,20 @@ constexpr auto operator+ (Register<s, i>, Immediate<imms, x, is_var>)
     return Memory<s, r, NoReg, NoScale, Displacement<imms, x, is_var>>{};
 }
 
+// reg * scale
 template <size_t s, size_t i,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto operator* (Register<s, i>, Immediate<imms, x, is_var>)
 {
     using reg = Register<s, i>;
     return Memory<s, NoReg, reg, Scale<x>, NoDisp>{};
+}
+
+template <size_t imms, typename Immediate_type<imms>::type x, bool is_var,
+	  size_t s, size_t i>
+constexpr auto operator* (Immediate<imms, x, is_var> imm, Register<s, i> reg)
+{
+    return reg * imm;
 }
 
 template <size_t s, typename r1, typename r2, typename scale,
