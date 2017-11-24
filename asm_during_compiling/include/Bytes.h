@@ -34,7 +34,7 @@ struct Bytes<ByteArray<bytes...>, FlagArray<is_vars...>, Args...> {
     constexpr static std::array<bool, size> flag = { is_vars... };
 
     static void print () {
-	printf("code: ");
+	//printf("code: ");
 	for (auto i = 0u; i < data.size(); ++i) {
 	    printf("%02x ", data[i]);
 	}

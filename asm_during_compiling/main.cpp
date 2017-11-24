@@ -10,6 +10,7 @@ int main ()
     static_assert(ADD(bx,   Imm8<0x12>)	   	== make_bytes<0x66, 0x83, 0xc3, 0x12>());
     static_assert(ADD(cx,   Imm16<0x1234>)	== make_bytes<0x66, 0x81, 0xc1, 0x34, 0x12>());
     static_assert(ADD(edx,  Imm32<0x12345678>)	== make_bytes<0x81, 0xc2, 0x78, 0x56, 0x34, 0x12>());
+
     static_assert(ADD(rsi,  Imm8<0x12>)		== make_bytes<0x48, 0x83, 0xc6, 0x12>());
     static_assert(ADD(r11,  Imm8<0x12>) 	== make_bytes<0x49, 0x83, 0xc3, 0x12>());
     static_assert(ADD(rdi,  Imm32<0x12345678>)  == make_bytes<0x48, 0x81, 0xc7, 0x78, 0x56, 0x34, 0x12>());
@@ -47,11 +48,73 @@ int main ()
     static_assert(ADD(q_[r8  + Imm32<0x34>], rcx)   == make_bytes<0x49, 0x01, 0x88, 0x34, 0x00, 0x00, 0x00>());
     static_assert(ADD(q_[r8  + Imm32<0x34>], r9)    == make_bytes<0x4d, 0x01, 0x88, 0x34, 0x00, 0x00, 0x00>());
 
-    auto c = ADD(b_[rax + Imm32<0x12345678>], VarImm8);
-    c.print();
-    c.emit(0xcd);
 
-    ADD(b_[rax + Imm32<0x12345678>], Imm8<0x12>).emit();
-    ADD(b_[rax + Imm32<0x12345678>], VarImm8).emit(0xcd);
+    // error
+#if 0
+    ADD r64, imm8
+    ADD r64, imm32
+    ADD r64, r64
+    {error
+	ADD(r13, rax).print();
+	ADD(r14, rax).print();
+	ADD(r15, rax).print();
+    }
+    ADD mem8, r8
+    {error
+	ADD(b_[rsi + Imm8<0x34>], al).print();
+	ADD(b_[rdi + Imm8<0x34>], al).print();
+	ADD(b_[r8  + Imm8<0x34>], al).print();
+	ADD(b_[r12 + Imm8<0x34>], al).print();
+	ADD(b_[r13 + Imm8<0x34>], al).print();
+    }
+    {
+	ADD(rax, Imm8<0x12>).print();
+	ADD(rcx, Imm8<0x12>).print();
+	ADD(rdx, Imm8<0x12>).print();
+	ADD(rbx, Imm8<0x12>).print();
+	ADD(rsp, Imm8<0x12>).print();
+	ADD(rbp, Imm8<0x12>).print();
+	ADD(rsi, Imm8<0x12>).print();
+	ADD(rdi, Imm8<0x12>).print();
+	ADD(r8,  Imm8<0x12>).print();
+	ADD(r9,  Imm8<0x12>).print();
+	ADD(r10, Imm8<0x12>).print();
+	ADD(r11, Imm8<0x12>).print();
+	ADD(r12, Imm8<0x12>).print();
+	ADD(r13, Imm8<0x12>).print();
+	ADD(r14, Imm8<0x12>).print();
+	ADD(r15, Imm8<0x12>).print();
+    }
+#endif
+    {
+	INC(al).print();
+	INC(ax).print();
+	INC(eax).print();
+	INC(rax).print();
+	INC(r8).print();
+	INC(r9).print();
+	INC(r10).print();
+	INC(r11).print();
+	INC(r12).print();
+	INC(r13).print();
+	INC(r14).print();
+	INC(r15).print();
+	INC(b_[rax + Imm32<0x12345678>]).print();
+	INC(w_[rax + Imm32<0x12345678>]).print();
+	INC(d_[rax + Imm32<0x12345678>]).print();
+	INC(q_[rax + Imm32<0x12345678>]).print();
+    }
+
+    //{
+    //    auto c = ADD(b_[rax + Imm32<0x12345678>], VarImm8);
+    //    c.print();
+    //    c.emit(0xcd);
+    //}
+
+    //ADD(b_[rax + Imm32<0x12345678>], Imm8<0x12>).emit();
+    //ADD(b_[rax + Imm32<0x12345678>], VarImm8).emit(0xcd);
+
+
+
     return 0;
 }

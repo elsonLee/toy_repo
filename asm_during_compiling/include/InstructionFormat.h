@@ -63,6 +63,14 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
     return rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
 }
 
+template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp>
+constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>)
+{
+    static_assert(digit >= 0 && digit <= 7);
+    return rex<w, digit, 0, get_rex_b(r1{})>();
+}
+
+//NOTE: imm is not needed
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
@@ -70,8 +78,7 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_v
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
-    static_assert(digit >= 0 && digit <= 7);
-    return rex<w, digit, 0, get_rex_b(r1{})>();
+    return rex<w, digit>(mem{});
 }
 
 // figure 2-5.
@@ -139,13 +146,23 @@ constexpr auto sib (Memory<s, r1, r2, scale, disp>)
     return sib<scale::mode, r2::index, r1::index>();
 }
 
-template <uint8_t reg, size_t s, size_t i,
-	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
-constexpr auto modrm (Register<s, i>, Immediate<imms, x, is_var>)
+//! reg
+template <uint8_t reg, size_t s, size_t i>
+constexpr auto modrm (Register<s, i>)
 {
     return modrm<0b11, reg, Register<s, i>::index % 8>();
 }
 
+//! reg <--> imm
+//NOTE: actually, imm is not needed
+template <uint8_t reg, size_t s, size_t i,
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto modrm (Register<s, i> _reg, Immediate<imms, x, is_var>)
+{
+    return modrm<reg>(_reg);
+}
+
+//! reg <--> reg
 template <size_t s1, size_t i1, size_t s2, size_t i2>
 constexpr auto modrm (Register<s1, i1>, Register<s2, i2>)
 {
@@ -160,12 +177,20 @@ constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Immed
     return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d, is_var>{});
 }
 
+//! mem
+template <uint8_t digit, size_t s, typename r1, typename disp>
+constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>)
+{
+    return modrm<disp::mode, digit, r1::index % 8>() + to_bytes(disp{});
+}
+
 //! mem <--> imm
 template <uint8_t digit, size_t s, typename r1, typename disp,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
 {
-    return modrm<disp::mode, digit, r1::index % 8>() + to_bytes(disp{});
+    using mem = Memory<s, r1, NoReg, NoScale, disp>;
+    return modrm<digit>(mem{});
 }
 
 //! mem <--> imm
