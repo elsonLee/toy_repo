@@ -104,23 +104,4 @@ constexpr auto operator+ (Register<s1, i1>, Memory<s2, NoReg, r2, scale, NoDisp>
     return Memory<1, r1, r2, scale, NoDisp>{}; // memory size is not important here
 }
 
-//! mem <--> reg
-template <size_t memsize, typename r1, typename r2, typename scale, typename disp, size_t regsize, size_t i>
-constexpr auto modrm (Memory<memsize, r1, r2, scale, disp>, Register<regsize, i>)
-{
-    using mem = Memory<memsize, r1, r2, scale, disp>;
-    using reg = Register<regsize, i>;
-    if constexpr (r1::index == 0b100)
-    {
-	// NOTE: not support!
-    }
-    else if constexpr (r2::index == 0b101)
-    {
-	// NOTE: not support!
-    }
-    else {
-	return modrm<disp::mode, reg::index, 0b100>() + sib(mem{}) + to_bytes(disp{});
-    }
-}
-
 #endif //MEMORY_OPERATION_H

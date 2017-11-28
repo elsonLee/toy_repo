@@ -48,17 +48,19 @@ int main ()
     static_assert(ADD(q_[r8  + Imm32<0x34>], rcx)   == make_bytes<0x49, 0x01, 0x88, 0x34, 0x00, 0x00, 0x00>());
     static_assert(ADD(q_[r8  + Imm32<0x34>], r9)    == make_bytes<0x4d, 0x01, 0x88, 0x34, 0x00, 0x00, 0x00>());
 
-
+    ADD(b_[rsi + Imm8<0x34>], al).print();
+    ADD(b_[rdi + Imm8<0x34>], al).print();
+    ADD(b_[r8  + Imm8<0x34>], al).print();
+    ADD(b_[r12 + Imm8<0x34>], al).print();
+    ADD(b_[r12 + Imm32<0x12345678>], al).print();
+    ADD(b_[r13 + Imm8<0x34>], al).print();
+    ADD(b_[rsp + Imm8<0x34>], al).print();
+    ADD(b_[rsp + Imm32<0x12345678>], al).print();
     // error
 #if 0
     ADD r64, imm8
     ADD r64, imm32
     ADD r64, r64
-    {error
-	ADD(r13, rax).print();
-	ADD(r14, rax).print();
-	ADD(r15, rax).print();
-    }
     ADD mem8, r8
     {error
 	ADD(b_[rsi + Imm8<0x34>], al).print();

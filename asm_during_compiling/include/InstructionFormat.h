@@ -217,7 +217,39 @@ template <size_t s, typename r1, typename disp, size_t i>
 constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 {
     using reg = Register<s, i>;
-    return modrm<disp::mode, reg::index % 8, r1::index % 8>() + to_bytes(disp{});
+    if constexpr (r1::index % 8 == 0b100)
+    // [base] + disp8/32
+    {
+	return modrm<disp::mode, reg::index % 8, r1::index % 8>() + sib<0b00, 0b100, 0b100>() + to_bytes(disp{});
+    }
+    else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b1001)
+    // FIXME: put disp32 other place
+    {
+
+    }
+    else
+    {
+	return modrm<disp::mode, reg::index % 8, r1::index % 8>() + to_bytes(disp{});
+    }
+}
+
+//! mem <--> reg
+template <size_t memsize, typename r1, typename r2, typename scale, typename disp, size_t regsize, size_t i>
+constexpr auto modrm (Memory<memsize, r1, r2, scale, disp>, Register<regsize, i>)
+{
+    using mem = Memory<memsize, r1, r2, scale, disp>;
+    using reg = Register<regsize, i>;
+    if constexpr (r1::index % 8 == 0b100)
+    {
+	// NOTE: not support!
+    }
+    else if constexpr (r2::index % 8 == 0b101)
+    {
+	// NOTE: not support!
+    }
+    else {
+	return modrm<disp::mode, reg::index, 0b100>() + sib(mem{}) + to_bytes(disp{});
+    }
 }
 
 #endif //INSTRUCTION_FORMAT_H
