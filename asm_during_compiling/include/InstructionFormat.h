@@ -105,7 +105,11 @@ template <uint8_t w, size_t s, typename r1, typename r2, typename scale, typenam
 constexpr auto rex (Memory<s, r1, r2, scale, disp>, Register<s, i>)
 {
     using reg = Register<s, i>;
-    return rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
+    if constexpr (r1::size == non_default_addressing_size) {
+	return prefix<'\x67'>() + rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
+    } else {
+	return rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
+    }
 }
 
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp,
@@ -116,7 +120,12 @@ constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
     using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
     static_assert(digit >= 0 && digit <= 7);
-    return rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
+
+    if constexpr (r1::size == non_default_addressing_size) {
+	return prefix<'\x67'>() + rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
+    } else {
+	return rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
+    }
 }
 
 // Figure 2-7.
@@ -207,7 +216,6 @@ constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is
 	return modrm<digit>(mem{}) + sib<0b00, 0b100, 0b100>() + to_bytes(disp{});
     }
     else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
-    // FIXME: put disp32 other place
     // [ebp]
     {
 	return modrm<digit>(Memory<s, r1, NoReg, NoScale, Disp8<0x0, false>>{}, imm{});
@@ -224,13 +232,14 @@ template <uint8_t digit, size_t s, typename r1, typename r2, typename scale, typ
 constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
 {
     using mem = Memory<s, r1, r2, scale, disp>;
-    if constexpr (r1::index == 0b100)
+    if constexpr (r1::index % 8 == 0b100)
+    // [base + index * scale] + disp8/32
     {
-	// TODO: not support!
+	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
-    else if constexpr (r2::index == 0b101)
+    else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
     {
-	// TODO: not support!
+	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
     else {
 	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
@@ -245,7 +254,6 @@ constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
     if constexpr (r1::index % 8 == 0b100)
     // [base] + disp8/32
     {
-	return modrm<disp::mode, reg::index % 8, r1::index % 8>() + sib<0b00, 0b100, 0b100>() + to_bytes(disp{});
     }
     else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b1001)
     // FIXME: put disp32 other place
