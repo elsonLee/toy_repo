@@ -1,6 +1,10 @@
 #ifndef LX_ASM_H
 #define LX_ASM_H
 
+#include <array>
+
+#include <cstdint>
+
 #include "Bytes.h"
 #include "Operands.h"
 #include "InstructionFormat.h"
