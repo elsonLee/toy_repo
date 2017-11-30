@@ -46,6 +46,27 @@ constexpr auto prefix ()
     return Bytes<ByteArray<code...>, decltype(make_flag_array<false, sizeof...(code)>())>{};
 }
 
+//! prefix_66
+template <size_t s, size_t i>
+constexpr auto prefix_66 (Register<s, i>)
+{
+    if constexpr (s == non_default_operand_size) {
+	return prefix<'\x66'>();
+    } else {
+	return Bytes<ByteArray<>, FlagArray<>>{};
+    }
+}
+
+template <size_t s, typename r1, typename r2, typename scale, typename disp>
+constexpr auto prefix_66 (Memory<s, r1, r2, scale, disp>)
+{
+    if constexpr (s == non_default_operand_size) {
+	return prefix<'\x66'>();
+    } else {
+	return Bytes<ByteArray<>, FlagArray<>>{};
+    }
+}
+
 //! prefix_67
 template <size_t s, typename r1, typename r2, typename scale, typename disp>
 constexpr auto prefix_67 (Memory<s, r1, r2, scale, disp>)
@@ -75,7 +96,7 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 {
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using reg = Register<s, i>;
-    return prefix_67(mem{}) + rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
+    return prefix_66(mem{}) + prefix_67(mem{}) + rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
 }
 
 // rex [base + disp]
@@ -84,12 +105,7 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>)
 {
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
     static_assert(digit >= 0 && digit <= 7);
-    //if constexpr (r1::size == non_default_addressing_size) {
-    //    return prefix<'\x67'>() + rex<w, digit, 0, get_rex_b(r1{})>();
-    //} else {
-    //    return rex<w, digit, 0, get_rex_b(r1{})>();
-    //}
-    return prefix_67(mem{}) + rex<w, digit, 0, get_rex_b(r1{})>();
+    return prefix_66(mem{}) + prefix_67(mem{}) + rex<w, digit, 0, get_rex_b(r1{})>();
 }
 
 //NOTE: imm is not needed
@@ -110,19 +126,17 @@ constexpr auto rex (Register<s1, i1>, Register<s2, i2>)
 {
     using r1 = Register<s1, i1>;
     using r2 = Register<s2, i2>;
-    return rex<w, get_rex_r(r2{}), 0, get_rex_b(r1{})>();
+    static_assert(r1::size == r2::size);
+    return prefix_66(r1{}) + rex<w, get_rex_r(r2{}), 0, get_rex_b(r1{})>();
 }
 
 // figure 2-6.
 template <uint8_t w, size_t s, typename r1, typename r2, typename scale, typename disp, size_t i>
 constexpr auto rex (Memory<s, r1, r2, scale, disp>, Register<s, i>)
 {
+    using mem = Memory<s, r1, r2, scale, disp>;
     using reg = Register<s, i>;
-    if constexpr (r1::size == non_default_addressing_size) {
-	return prefix<'\x67'>() + rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
-    } else {
-	return rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
-    }
+    return prefix_66(mem{}) + prefix_67(mem{}) + rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
 }
 
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp,
@@ -133,12 +147,7 @@ constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
     using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
     static_assert(digit >= 0 && digit <= 7);
-
-    if constexpr (r1::size == non_default_addressing_size) {
-	return prefix<'\x67'>() + rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
-    } else {
-	return rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
-    }
+    return prefix_66(mem{}) + prefix_67(mem{}) + rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
 }
 
 // Figure 2-7.
@@ -146,7 +155,7 @@ template <uint8_t w, size_t s, size_t i>
 constexpr auto rex (Register<s, i>)
 {
     using reg = Register<s, i>;
-    return rex<w, 0, 0, get_rex_b(reg{})>();
+    return prefix_66(reg{}) + rex<w, 0, 0, get_rex_b(reg{})>();
 }
 
 template <uint8_t... code>
