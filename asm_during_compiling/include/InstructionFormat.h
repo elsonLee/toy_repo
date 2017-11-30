@@ -231,15 +231,25 @@ template <uint8_t digit, size_t s, typename r1, typename r2, typename scale, typ
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
 {
+    static_assert(r1::size == r2::size);
     using mem = Memory<s, r1, r2, scale, disp>;
+    using imm = Immediate<imms, x, is_var>;
+
+    // none
+    if constexpr (r2::index % 8 == 0b100) {
+        return Bytes<ByteArray<>, FlagArray<>>{};
+    }
+
+
     if constexpr (r1::index % 8 == 0b100)
     // [base + index * scale] + disp8/32
     {
 	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
+    // [esp + index * scale] + disp8/32
     else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
     {
-	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
+	return modrm<digit>(Memory<s, r1, r2, scale, Disp8<0x0, false>>{}, imm{});
     }
     else {
 	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
