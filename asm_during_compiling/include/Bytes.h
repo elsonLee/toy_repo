@@ -113,6 +113,12 @@ constexpr auto operator+ (Bytes<ByteArray<>, FlagArray<>>,
     return Bytes<ByteArray<rs...>, FlagArray<rfs...>, rargs...>{};
 }
 
+constexpr auto operator+ (Bytes<ByteArray<>, FlagArray<>>,
+			  Bytes<ByteArray<>, FlagArray<>>)
+{
+    return Bytes<ByteArray<>, FlagArray<>>{};
+}
+
 template <uint8_t l, uint8_t... ls, bool lf, bool... lfs,
 	  uint8_t r, uint8_t... rs, bool rf, bool... rfs>
 constexpr auto operator== (Bytes<ByteArray<l, ls...>, FlagArray<lf, lfs...>>,

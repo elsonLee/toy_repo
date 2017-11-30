@@ -1,6 +1,7 @@
 #ifndef INSTRUCTION_FORMAT_H
 #define INSTRUCTION_FORMAT_H
 
+static const uint8_t non_default_operand_size = 2;   // 16-bit
 static const uint8_t non_default_addressing_size = 4;   // 32-bit
 
 //! rex
@@ -45,6 +46,17 @@ constexpr auto prefix ()
     return Bytes<ByteArray<code...>, decltype(make_flag_array<false, sizeof...(code)>())>{};
 }
 
+//! prefix_67
+template <size_t s, typename r1, typename r2, typename scale, typename disp>
+constexpr auto prefix_67 (Memory<s, r1, r2, scale, disp>)
+{
+    if constexpr (r1::size == non_default_addressing_size) {
+	return prefix<'\x67'>();
+    } else {
+	return Bytes<ByteArray<>, FlagArray<>>{};
+    }
+}
+
 template <uint8_t w, uint8_t r, uint8_t x, uint8_t b>
 constexpr auto rex ()
 { 
@@ -61,26 +73,27 @@ constexpr auto rex ()
 template <uint8_t w, size_t s, typename r1, typename disp, size_t i>
 constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 {
+    using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using reg = Register<s, i>;
-    if constexpr (r1::size == non_default_addressing_size) {
-	return prefix<'\x67'>() + rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
-    } else {
-	return rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
-    }
+    return prefix_67(mem{}) + rex<w, get_rex_r(reg{}), 0, get_rex_b(r1{})>();
 }
 
+// rex [base + disp]
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp>
 constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>)
 {
+    using mem = Memory<s, r1, NoReg, NoScale, disp>;
     static_assert(digit >= 0 && digit <= 7);
-    if constexpr (r1::size == non_default_addressing_size) {
-	return prefix<'\x67'>() + rex<w, digit, 0, get_rex_b(r1{})>();
-    } else {
-	return rex<w, digit, 0, get_rex_b(r1{})>();
-    }
+    //if constexpr (r1::size == non_default_addressing_size) {
+    //    return prefix<'\x67'>() + rex<w, digit, 0, get_rex_b(r1{})>();
+    //} else {
+    //    return rex<w, digit, 0, get_rex_b(r1{})>();
+    //}
+    return prefix_67(mem{}) + rex<w, digit, 0, get_rex_b(r1{})>();
 }
 
 //NOTE: imm is not needed
+// rex [base + disp], imm
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
