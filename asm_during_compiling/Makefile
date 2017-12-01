@@ -6,7 +6,7 @@ OBJ_DIR = ./objs
 OBJECTS = $(addprefix $(OBJ_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 TARGET = main
 
-TEST_BINARY = test1
+TEST_BINARY = AddressingTest
 TEST_DIR = ./test
 TEST_OBJ_DIR = $(OBJ_DIR)/test
 TEST_OBJ = $(TEST_BINARY:%=$(TEST_OBJ_DIR)/%.o)
