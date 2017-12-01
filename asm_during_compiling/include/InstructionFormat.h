@@ -191,7 +191,7 @@ constexpr auto sib (Memory<s, r1, NoReg, NoScale, disp>)
 template <size_t s, typename r1, typename r2, typename scale, typename disp>
 constexpr auto sib (Memory<s, r1, r2, scale, disp>)
 {
-    return sib<scale::mode, r2::index, r1::index % 8>();
+    return sib<scale::mode, r2::index % 8, r1::index % 8>();
 }
 
 //! reg
@@ -314,17 +314,18 @@ constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Register<regsize, i>)
     using mem = Memory<s, r1, r2, scale, disp>;
     using reg = Register<regsize, i>;
     if constexpr (r1::index % 8 == 0b100)
-    // [][] + disp0/8/32
+    // [xsp + index] + disp0/8/32
     {
-	return modrm<disp::mode, reg::index, 0b100>() + sib(mem{}) + to_bytes(disp{});
+	return modrm<disp::mode, reg::index % 8, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
     else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
+    // [ebp + index] convert to [ebp + index + 0]
     {
 	return modrm(Memory<s, r1, r2, scale, Disp8<0x0, false>>{}, reg{});
     }
     else
     {
-	return modrm<disp::mode, reg::index, 0b100>() + to_bytes(disp{});
+	return modrm<disp::mode, reg::index % 8, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
 }
 
