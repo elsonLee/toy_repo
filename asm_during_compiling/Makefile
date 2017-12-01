@@ -10,6 +10,7 @@ TEST_BINARY = AddressingTest
 TEST_DIR = ./test
 TEST_OBJ_DIR = $(OBJ_DIR)/test
 TEST_OBJ = $(TEST_BINARY:%=$(TEST_OBJ_DIR)/%.o)
+TEST_OBJ += $(TEST_OBJ_DIR)/tests-main.o
 
 .PHONY: all test make_dir clean
 

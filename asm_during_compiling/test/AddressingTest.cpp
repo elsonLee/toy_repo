@@ -2,7 +2,6 @@
 #include <cassert>
 #include "lxasm.h"
 
-#define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
 #define BYTES(args...) (make_bytes<args>())
