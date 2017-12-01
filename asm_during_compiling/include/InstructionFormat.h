@@ -166,25 +166,32 @@ constexpr auto opcode () {
 template <uint8_t mode, uint8_t reg, uint8_t rm>
 constexpr auto modrm ()
 {
-    static_assert(mode | (0b11  == 0b11));
-    static_assert(reg  | (0b111 == 0b111));
-    static_assert(rm   | (0b111 == 0b111));
+    static_assert((mode | 0b11)  == 0b11);
+    static_assert((reg  | 0b111) == 0b111);
+    static_assert((rm   | 0b111) == 0b111);
     return to_bytes<1, (mode << 6) + (reg << 3) + rm>();
 }
 
 template <uint8_t scale, uint8_t index, uint8_t base>
 constexpr auto sib ()
 {
-    static_assert(scale | (0b11 == 0b11));
-    static_assert(index | (0b111 == 0b111));
-    static_assert(base  | (0b111 == 0b111));
+    static_assert((scale | 0b11)  == 0b11);
+    static_assert((index | 0b111) == 0b111);
+    static_assert((base  | 0b111) == 0b111);
     return to_bytes<1, (scale << 6) + (index << 3) + base>();
+}
+
+// none
+template <size_t s, typename r1, typename disp>
+constexpr auto sib (Memory<s, r1, NoReg, NoScale, disp>)
+{
+    return sib<0b00, 0b100, r1::index % 8>();
 }
 
 template <size_t s, typename r1, typename r2, typename scale, typename disp>
 constexpr auto sib (Memory<s, r1, r2, scale, disp>)
 {
-    return sib<scale::mode, r2::index, r1::index>();
+    return sib<scale::mode, r2::index, r1::index % 8>();
 }
 
 //! reg
@@ -233,12 +240,12 @@ constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using imm = Immediate<imms, x, is_var>;
     if constexpr (r1::index % 8 == 0b100)
-    // [base] + disp8/32
+    // [xsp] + disp0/8/32
     {
 	return modrm<digit>(mem{}) + sib<0b00, 0b100, 0b100>() + to_bytes(disp{});
     }
     else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
-    // [ebp]
+    // [ebp] convert to [ebp + 0]
     {
 	return modrm<digit>(Memory<s, r1, NoReg, NoScale, Disp8<0x0, false>>{}, imm{});
     }
@@ -264,7 +271,7 @@ constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>
 
 
     if constexpr (r1::index % 8 == 0b100)
-    // [base + index * scale] + disp8/32
+    // [][] + disp0/8/32
     {
 	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
@@ -282,15 +289,17 @@ constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>
 template <size_t s, typename r1, typename disp, size_t i>
 constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 {
+    using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using reg = Register<s, i>;
     if constexpr (r1::index % 8 == 0b100)
-    // [base] + disp8/32
+    // [xsp] + disp0/8/32
     {
+	return modrm<disp::mode, reg::index % 8, r1::index % 8>() + sib(mem{}) + to_bytes(disp{});
     }
-    else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b1001)
-    // FIXME: put disp32 other place
+    else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
+    // [ebp] convert to [ebp + 0]
     {
-
+	return modrm(Memory<s, r1, NoReg, NoScale, Disp8<0x0, false>>{}, reg{});
     }
     else
     {
@@ -299,21 +308,23 @@ constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 }
 
 //! mem <--> reg
-template <size_t memsize, typename r1, typename r2, typename scale, typename disp, size_t regsize, size_t i>
-constexpr auto modrm (Memory<memsize, r1, r2, scale, disp>, Register<regsize, i>)
+template <size_t s, typename r1, typename r2, typename scale, typename disp, size_t regsize, size_t i>
+constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Register<regsize, i>)
 {
-    using mem = Memory<memsize, r1, r2, scale, disp>;
+    using mem = Memory<s, r1, r2, scale, disp>;
     using reg = Register<regsize, i>;
     if constexpr (r1::index % 8 == 0b100)
+    // [][] + disp0/8/32
     {
-	// NOTE: not support!
-    }
-    else if constexpr (r2::index % 8 == 0b101)
-    {
-	// NOTE: not support!
-    }
-    else {
 	return modrm<disp::mode, reg::index, 0b100>() + sib(mem{}) + to_bytes(disp{});
+    }
+    else if constexpr (disp::mode == 0b00 && r1::index % 8 == 0b101)
+    {
+	return modrm(Memory<s, r1, r2, scale, Disp8<0x0, false>>{}, reg{});
+    }
+    else
+    {
+	return modrm<disp::mode, reg::index, 0b100>() + to_bytes(disp{});
     }
 }
 
