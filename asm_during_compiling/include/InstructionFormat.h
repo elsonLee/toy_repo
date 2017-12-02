@@ -217,12 +217,21 @@ constexpr auto modrm (Register<s1, i1>, Register<s2, i2>)
     return modrm<0b11, Register<s2, i2>::index % 8, Register<s1, i1>::index % 8>();
 }
 
-//! [rip + disp32]
-template <uint8_t digit, size_t s, typename Displacement_type<4>::type d,
-          size_t imms, typename Immediate_type<imms>::type x, bool is_var>
-constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Immediate<imms, x, is_var>)
+//! [rip + disp32] <--> imm
+template <uint8_t digit, size_t s, typename Displacement_type<4>::type d, bool disp_is_var,
+          size_t imms, typename Immediate_type<imms>::type x, bool imm_is_var>
+constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, disp_is_var>>, Immediate<imms, x, imm_is_var>)
 {
-    return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d, is_var>{});
+    return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d, disp_is_var>{});
+}
+
+//! [rip + disp32] <--> reg
+template <uint8_t digit, size_t s, typename Displacement_type<4>::type d, bool is_var,
+          size_t regs, size_t i>
+constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Register<regs, i>)
+{
+    using reg = Register<regs, i>;
+    return modrm<0b00, reg::index % 8, 0b101>() + to_bytes(Disp32<d, is_var>{});
 }
 
 //! mem

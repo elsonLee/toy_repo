@@ -36,7 +36,8 @@ struct Register {
     static constexpr size_t index = i;
 };
 
-using NoReg  = Register<0, 0>;
+//using NoReg  = Register<0, 0>;
+struct NoReg { static constexpr size_t size = 0; };
 template <size_t i> using Reg8  = Register<1, i>;
 template <size_t i> using Reg16 = Register<2, i>;
 template <size_t i> using Reg32 = Register<4, i>;

@@ -660,7 +660,7 @@ TEST_CASE("various memory addressing", "[mem addressing]") {
 
     SECTION("m8, r8") {
 	//REQUIRE(ADD(q_[Imm32<0x7fabcdef>], Imm8<0x12>) == BYTES(0x48, 0x83, 0x05, 0xef, 0xcd, 0xab, 0x7f, 0x12));
-	//ADD(q_[Imm32<0x7fabcdef>], al).print();
+	//ADD(b_[Imm32<0x7fabcdef>], al).print();
 
 	REQUIRE(ADD(b_[eax], al) == BYTES(0x67, 0x00, 0x00));
 	REQUIRE(ADD(b_[esp], ah) == BYTES(0x67, 0x00, 0x24, 0x24));
