@@ -226,11 +226,11 @@ constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, disp_is_var>>, 
 }
 
 //! [rip + disp32] <--> reg
-template <uint8_t digit, size_t s, typename Displacement_type<4>::type d, bool is_var,
-          size_t regs, size_t i>
-constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Register<regs, i>)
+template <size_t s, typename Displacement_type<4>::type d, bool is_var,
+          size_t i>
+constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Register<s, i>)
 {
-    using reg = Register<regs, i>;
+    using reg = Register<s, i>;
     return modrm<0b00, reg::index % 8, 0b101>() + to_bytes(Disp32<d, is_var>{});
 }
 
@@ -317,11 +317,11 @@ constexpr auto modrm (Memory<s, r1, NoReg, NoScale, disp>, Register<s, i>)
 }
 
 //! mem <--> reg
-template <size_t s, typename r1, typename r2, typename scale, typename disp, size_t regsize, size_t i>
-constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Register<regsize, i>)
+template <size_t s, typename r1, typename r2, typename scale, typename disp, size_t i>
+constexpr auto modrm (Memory<s, r1, r2, scale, disp>, Register<s, i>)
 {
     using mem = Memory<s, r1, r2, scale, disp>;
-    using reg = Register<regsize, i>;
+    using reg = Register<s, i>;
     if constexpr (r1::index % 8 == 0b100)
     // [xsp + index] + disp0/8/32
     {
