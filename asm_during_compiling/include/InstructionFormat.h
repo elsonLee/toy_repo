@@ -217,7 +217,7 @@ constexpr auto modrm (Register<s1, i1>, Register<s2, i2>)
     return modrm<0b11, Register<s2, i2>::index % 8, Register<s1, i1>::index % 8>();
 }
 
-//! [disp32]
+//! [rip + disp32]
 template <uint8_t digit, size_t s, typename Displacement_type<4>::type d,
           size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, is_var>>, Immediate<imms, x, is_var>)
