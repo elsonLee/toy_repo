@@ -2,7 +2,7 @@
 #define LX_ASM_H
 
 #include <array>
-
+#include <cassert>
 #include <cstdint>
 
 #include "Bytes.h"
@@ -10,6 +10,8 @@
 #include "InstructionFormat.h"
 #include "MemoryOperation.h"
 #include "Opcode.h"
+
+#define BYTES(args...) (make_bytes<args>())
 
 template <Immediate_type<1>::type x> constexpr Immediate<1, x, false> Imm8{};
 template <Immediate_type<2>::type x> constexpr Immediate<2, x, false> Imm16{};

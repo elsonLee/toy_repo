@@ -6,7 +6,7 @@ OBJ_DIR = ./objs
 OBJECTS = $(addprefix $(OBJ_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 TARGET = main
 
-TEST_BINARY = AddressingTest
+TEST_BINARY = AddressingTest OpcodeTest
 TEST_DIR = ./test
 TEST_OBJ_DIR = $(OBJ_DIR)/test
 TEST_OBJ = $(TEST_BINARY:%=$(TEST_OBJ_DIR)/%.o)
@@ -20,8 +20,8 @@ test: make_dir $(TEST_OBJ) $(TEST_BINARY)
 
 make_dir: $(OBJ_DIR) $(TEST_OBJ_DIR)
 
-$(TEST_BINARY): $(TEST_OBJ)
-	$(CPP) $(LDFLAG) $^ -o $@
+$(TEST_BINARY): $(TEST_OBJ_DIR)/tests-main.o
+	$(CPP) $(LDFLAG) $(TEST_OBJ_DIR)/$(addsuffix .o, $@) $^ -o $@
 
 $(TARGET): $(OBJECTS)
 	$(CPP) $(LDFLAG) $^ -o $@

@@ -1,10 +1,5 @@
-#include <stdio.h>
-#include <cassert>
 #include "lxasm.h"
-
 #include "catch.hpp"
-
-#define BYTES(args...) (make_bytes<args>())
 
 TEST_CASE("various memory addressing", "[mem addressing]") {
 
