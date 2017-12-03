@@ -47,6 +47,14 @@ TEST_CASE("various opcodes", "[opcode]") {
     }
 
     SECTION("INC") {
+	REQUIRE(INC(bl)  == BYTES(0xfe, 0xc3));
+	REQUIRE(INC(bx)  == BYTES(0x66, 0xff, 0xc3));
+	REQUIRE(INC(ebx) == BYTES(0xff, 0xc3));	
+	REQUIRE(INC(rbx) == BYTES(0x48, 0xff, 0xc3));
+	REQUIRE(INC(b_[rsp + rbp * 2_x + Imm8<0x7f>]) == BYTES(0xfe, 0x44, 0x6c, 0x7f));
+	REQUIRE(INC(w_[rsp + rbp * 2_x + Imm8<0x7f>]) == BYTES(0x66, 0xff, 0x44, 0x6c, 0x7f));
+	REQUIRE(INC(d_[rsp + rbp * 2_x + Imm8<0x7f>]) == BYTES(0xff, 0x44, 0x6c, 0x7f));
+	REQUIRE(INC(q_[rsp + rbp * 2_x + Imm8<0x7f>]) == BYTES(0x48, 0xff, 0x44, 0x6c, 0x7f));
     }
 
     SECTION("JE") {

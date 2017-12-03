@@ -452,18 +452,19 @@ constexpr auto SUB (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
 template <size_t s, size_t i>
 constexpr auto INC (Register<s, i> reg)
 {
+    using imm = Immediate<1, 0, false>;
     constexpr uint8_t digit = 0; 
-    if constexpr (is_r8(reg) || is_r16(reg) || is_r32(reg))
+    if constexpr (is_r8(reg))
     {
-	return rex<0>(reg) + opcode<'\xFF'>() + modrm<digit>(reg);
+	return rex<0>(reg) + opcode<'\xFE'>() + modrm<digit>(reg, imm{});
     }
-    else if constexpr (is_r16(reg))
+    else if constexpr (is_r16(reg) || is_r32(reg))
     {
-	return rex<0>(reg) + opcode<'\xFF'>() + modrm<digit>(reg);
+	return rex<0>(reg) + opcode<'\xFF'>() + modrm<digit>(reg, imm{});
     }
     else if constexpr (is_r64(reg))
     {
-	return rex<1>(reg) + opcode<'\xFF'>() + modrm<digit>(reg);
+	return rex<1>(reg) + opcode<'\xFF'>() + modrm<digit>(reg, imm{});
     }
     else
     {
@@ -478,18 +479,19 @@ constexpr auto INC (Register<s, i> reg)
 template <size_t memsize, typename r1, typename r2,  typename scale, typename disp>
 constexpr auto INC (Memory<memsize, r1, r2, scale, disp> mem)
 {
+    using imm = Immediate<1, 0, false>;
     constexpr uint8_t digit = 0;
-    if constexpr (is_m8(mem) || is_m16(mem) || is_m32(mem))
+    if constexpr (is_m8(mem))
     {
-	return rex<0, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
+	return rex<0, digit>(mem) + opcode<'\xFE'>() + modrm<digit>(mem, imm{});
     } 
-    else if constexpr (is_m16(mem))
+    else if constexpr (is_m16(mem) || is_m32(mem))
     {
-	return rex<0, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
+	return rex<0, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem, imm{});
     }
     else if constexpr (is_m64(mem))
     {
-	return rex<1, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
+	return rex<1, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem, imm{});
     } 
     else {
 

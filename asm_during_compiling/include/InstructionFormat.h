@@ -139,6 +139,14 @@ constexpr auto rex (Memory<s, r1, r2, scale, disp>, Register<s, i>)
     return prefix_67(mem{}) + prefix_66(mem{}) + rex<w, get_rex_r(reg{}), get_rex_x(r2{}), get_rex_b(r1{})>();
 }
 
+template <uint8_t w, uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp>
+constexpr auto rex (Memory<s, r1, r2, scale, disp>)
+{
+    using mem = Memory<s, r1, NoReg, NoScale, disp>;
+    static_assert(digit >= 0 && digit <= 7);
+    return prefix_67(mem{}) + prefix_66(mem{}) + rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
+}
+
 template <uint8_t w, uint8_t digit, size_t s, typename r1, typename r2, typename scale, typename disp,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
 constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
@@ -146,8 +154,7 @@ constexpr auto rex (Memory<s, r1, r2, scale, disp>, Immediate<imms, x, is_var>)
     using mem = Memory<s, r1, NoReg, NoScale, disp>;
     using imm = Immediate<imms, x, is_var>;
     static_assert(mem::size >= imm::size);
-    static_assert(digit >= 0 && digit <= 7);
-    return prefix_67(mem{}) + prefix_66(mem{}) + rex<w, digit, get_rex_x(r2{}), get_rex_b(r1{})>();
+    return rex<w, digit>(mem{});
 }
 
 // Figure 2-7.
