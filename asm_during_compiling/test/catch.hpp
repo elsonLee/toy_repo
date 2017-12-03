@@ -282,6 +282,7 @@ namespace Catch {
 
 // start catch_interfaces_testcase.h
 
+#include <array>
 #include <vector>
 #include <memory>
 
@@ -735,6 +736,20 @@ namespace Catch {
                 oss << ::Catch::Detail::stringify(*first);
                 for (++first; first != last; ++first)
                     oss << ", " << ::Catch::Detail::stringify(*first);
+            }
+            oss << " }";
+            return oss.str();
+        }
+
+	template<std::size_t _Nm>
+        std::string arrayRangeToString(typename std::array<uint8_t, _Nm>::const_iterator first,
+				       typename std::array<uint8_t, _Nm>::const_iterator last) {
+            std::ostringstream oss;
+            oss << "{ ";
+            if (first != last) {
+                oss << "0x" << std::hex << (unsigned int)*first;
+                for (++first; first != last; ++first)
+                    oss << ", " << "0x" << std::hex << (unsigned int)*first;
             }
             oss << " }";
             return oss.str();

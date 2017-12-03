@@ -20,8 +20,8 @@ test: make_dir $(TEST_OBJ) $(TEST_BINARY)
 
 make_dir: $(OBJ_DIR) $(TEST_OBJ_DIR)
 
-$(TEST_BINARY): $(TEST_OBJ_DIR)/tests-main.o
-	$(CPP) $(LDFLAG) $(TEST_OBJ_DIR)/$(addsuffix .o, $@) $^ -o $@
+$(TEST_BINARY): $(TEST_OBJ)
+	$(CPP) $(LDFLAG) $(TEST_OBJ_DIR)/$(addsuffix .o, $@) $(TEST_OBJ_DIR)/tests-main.o -o $@
 
 $(TARGET): $(OBJECTS)
 	$(CPP) $(LDFLAG) $^ -o $@
