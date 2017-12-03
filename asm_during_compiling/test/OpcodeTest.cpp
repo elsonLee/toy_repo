@@ -4,10 +4,10 @@
 namespace Catch {
     template <uint8_t... bytes, bool... is_vars, typename... Args>
     struct StringMaker< Bytes<ByteArray<bytes...>, FlagArray<is_vars...>, Args...> > {
-        static std::string convert( Bytes<ByteArray<bytes...>, FlagArray<is_vars...>, Args...> const& v ) { 
+        static std::string convert( Bytes<ByteArray<bytes...>, FlagArray<is_vars...>, Args...> const& v ) {
 	return ::Catch::Detail::arrayRangeToString<v.size>(v.data.begin(), v.data.end());
         }
-    }; 
+    };
 }
 
 TEST_CASE("various opcodes", "[opcode]") {
