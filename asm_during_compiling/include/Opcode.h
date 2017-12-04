@@ -30,7 +30,7 @@ constexpr auto ADD (Register<s, i> reg, Immediate<imms, x, is_var> imm)
 	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
     }
     else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
+
     }
 }
 
@@ -85,7 +85,7 @@ constexpr auto ADD (Register<s1, i1> reg1, Register<s2, i2> reg2)
 	return rex<is_r64(reg1)?1:0>(reg1, reg2) + opcode<'\x01'>() + modrm(reg1, reg2);
     }
     else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
+
     }
 }
 
@@ -112,6 +112,29 @@ constexpr auto ADD (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
     }
 }
 
+// ADD r8,  m8  -- 02 /r
+// ADD r16, m16 -- 03 /r
+// ADD r32, m32 -- 03 /r
+// ADD r64, m64 -- REX.W + 03 /r
+template <size_t regsize, size_t i,
+	  size_t memsize, typename r1, typename r2,  typename scale, typename disp>
+constexpr auto ADD (Register<regsize, i> reg, Memory<memsize, r1, r2, scale, disp> mem)
+{
+    if constexpr (is_r8(reg) && is_m8(mem))
+    {
+	return rex<0>(mem, reg) + opcode<'\x02'>() + modrm(mem, reg);
+    } 
+    else if constexpr ((is_r16(reg) && is_m16(mem)) ||
+		       (is_r32(reg) && is_m32(mem)) ||
+		       (is_r64(reg) && is_m64(mem)))
+    {
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x03'>() + modrm(mem, reg);
+    } 
+    else {
+
+    }
+}
+
 
 // CMP r8 , imm8  -- 80 /7 ib
 // CMP r16, imm8  -- 83 /7 ib
@@ -129,60 +152,20 @@ constexpr auto CMP (Register<s, i> reg, Immediate<imms, x, is_var> imm)
     {
 	return rex<0>(reg) + opcode<'\x80'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm8(imm))
+    else if constexpr ((is_r16(reg) && is_imm8(imm)) ||
+		       (is_r32(reg) && is_imm8(imm)) ||
+		       (is_r64(reg) && is_imm8(imm)))
     {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm16(imm))
+    else if constexpr ((is_r16(reg) && is_imm16(imm)) ||
+		       (is_r32(reg) && is_imm32(imm)) ||
+		       (is_r64(reg) && is_imm32(imm)))
     {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r32(reg) && is_imm8(imm))
-    {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r32(reg) && is_imm32(imm))
-    {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm8(imm))
-    {
-	return rex<1>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm32(imm))
-    {
-	return rex<1>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    } 
     else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
-    }
-}
 
-// CMP r8, r8   -- 38 /r
-// CMP r16, r16 -- 39 /r
-// CMP r32, r32 -- 39 /r
-// CMP r64, r64 -- REX.W + 39 /r
-template <size_t s1, size_t i1, size_t s2, size_t i2>
-constexpr auto CMP (Register<s1, i1> reg1, Register<s2, i2> reg2)
-{
-    if constexpr (is_r8(reg1) && is_r8(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x38'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r16(reg1) && is_r16(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x39'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r32(reg1) && is_r32(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x39'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r64(reg1) && is_r64(reg2))
-    {
-	return rex<1>(reg1, reg2) + opcode<'\x39'>() + modrm(reg1, reg2);
-    }
-    else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
     }
 }
 
@@ -202,35 +185,44 @@ constexpr auto CMP (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     {
 	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm8(imm))
+    else if constexpr ((is_m16(mem) && is_imm8(imm)) ||
+		       (is_m32(mem) && is_imm8(imm)) ||
+		       (is_m64(mem) && is_imm8(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm16(imm))
+    else if constexpr ((is_m16(mem) && is_imm16(imm)) ||
+		       (is_m32(mem) && is_imm32(imm)) ||
+		       (is_m64(mem) && is_imm32(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm8(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm32(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm8(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm32(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
     }
 }
 
+// CMP r8, r8   -- 38 /r
+// CMP r16, r16 -- 39 /r
+// CMP r32, r32 -- 39 /r
+// CMP r64, r64 -- REX.W + 39 /r
+template <size_t s1, size_t i1, size_t s2, size_t i2>
+constexpr auto CMP (Register<s1, i1> reg1, Register<s2, i2> reg2)
+{
+    if constexpr (is_r8(reg1) && is_r8(reg2))
+    {
+	return rex<0>(reg1, reg2) + opcode<'\x38'>() + modrm(reg1, reg2);
+    }
+    else if constexpr ((is_r16(reg1) && is_r16(reg2)) ||
+		       (is_r32(reg1) && is_r32(reg2)) ||
+		       (is_r64(reg1) && is_r64(reg2)))
+    {
+	return rex<is_r64(reg1)?1:0>(reg1, reg2) + opcode<'\x39'>() + modrm(reg1, reg2);
+    }
+    else {
+
+    }
+}
 
 // CMP m8,  r8  -- 38 /r
 // CMP m16, r16 -- 39 /r
@@ -244,17 +236,34 @@ constexpr auto CMP (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
     {
 	return rex<0>(mem, reg) + opcode<'\x38'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m16(mem) && is_r16(reg))
+    else if constexpr ((is_m16(mem) && is_r16(reg)) ||
+		       (is_m32(mem) && is_r32(reg)) ||
+		       (is_m64(mem) && is_r64(reg)))
     {
-	return rex<0>(mem, reg) + opcode<'\x39'>() + modrm(mem, reg);
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x39'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m32(mem) && is_r32(reg))
+    else {
+
+    }
+}
+
+// CMP r8,  m8  -- 3a /r
+// CMP r16, m16 -- 3b /r
+// CMP r32, m32 -- 3b /r
+// CMP r64, m64 -- REX.W + 3b /r
+template <size_t regsize, size_t i,
+	  size_t memsize, typename r1, typename r2,  typename scale, typename disp>
+constexpr auto CMP (Register<regsize, i> reg, Memory<memsize, r1, r2, scale, disp> mem)
+{
+    if constexpr (is_r8(reg) && is_m8(mem))
     {
-	return rex<0>(mem, reg) + opcode<'\x39'>() + modrm(mem, reg);
+	return rex<0>(mem, reg) + opcode<'\x3a'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m64(mem) && is_r64(reg))
+    else if constexpr ((is_r16(reg) && is_m16(mem)) ||
+		       (is_r32(reg) && is_m32(mem)) ||
+		       (is_r64(reg) && is_m64(mem)))
     {
-	return rex<1>(mem, reg) + opcode<'\x39'>() + modrm(mem, reg);
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x3b'>() + modrm(mem, reg);
     } 
     else {
 
@@ -276,60 +285,20 @@ constexpr auto SUB (Register<s, i> reg, Immediate<imms, x, is_var> imm)
     {
 	return rex<0>(reg) + opcode<'\x80'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm8(imm))
+    else if constexpr ((is_r16(reg) && is_imm8(imm)) ||
+		       (is_r32(reg) && is_imm8(imm)) ||
+		       (is_r64(reg) && is_imm8(imm)))
     {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm16(imm))
+    else if constexpr ((is_r16(reg) && is_imm16(imm)) ||
+		       (is_r32(reg) && is_imm32(imm)) ||
+		       (is_r64(reg) && is_imm32(imm)))
     {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r32(reg) && is_imm8(imm))
-    {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r32(reg) && is_imm32(imm))
-    {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm8(imm))
-    {
-	return rex<1>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm32(imm))
-    {
-	return rex<1>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    } 
     else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
-    }
-}
 
-// SUB r8,  r8  -- 28 /r
-// SUB r16, r16 -- 29 /r
-// SUB r32, r32 -- 29 /r
-// SUB r64, r64 -- REX.W + 29 /r
-template <size_t s1, size_t i1, size_t s2, size_t i2>
-constexpr auto SUB (Register<s1, i1> reg1, Register<s2, i2> reg2)
-{
-    if constexpr (is_r8(reg1) && is_r8(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x28'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r16(reg1) && is_r16(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x29'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r32(reg1) && is_r32(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x29'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r64(reg1) && is_r64(reg2))
-    {
-	return rex<1>(reg1, reg2) + opcode<'\x29'>() + modrm(reg1, reg2);
-    }
-    else {
-	//return Bytes<ByteArray<>, FlagArray<>>{};
     }
 }
 
@@ -349,35 +318,44 @@ constexpr auto SUB (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     {
 	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm8(imm))
+    else if constexpr ((is_m16(mem) && is_imm8(imm)) ||
+		       (is_m32(mem) && is_imm8(imm)) ||
+		       (is_m64(mem) && is_imm8(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm16(imm))
+    else if constexpr ((is_m16(mem) && is_imm16(imm)) ||
+		       (is_m32(mem) && is_imm32(imm)) ||
+		       (is_m64(mem) && is_imm32(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm8(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm32(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm8(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm32(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
     }
 }
 
+// SUB r8,  r8  -- 28 /r
+// SUB r16, r16 -- 29 /r
+// SUB r32, r32 -- 29 /r
+// SUB r64, r64 -- REX.W + 29 /r
+template <size_t s1, size_t i1, size_t s2, size_t i2>
+constexpr auto SUB (Register<s1, i1> reg1, Register<s2, i2> reg2)
+{
+    if constexpr (is_r8(reg1) && is_r8(reg2))
+    {
+	return rex<0>(reg1, reg2) + opcode<'\x28'>() + modrm(reg1, reg2);
+    }
+    else if constexpr ((is_r16(reg1) && is_r16(reg2)) ||
+		       (is_r32(reg1) && is_r32(reg2)) ||
+		       (is_r64(reg1) && is_r64(reg2)))
+    {
+	return rex<is_r64(reg1)?1:0>(reg1, reg2) + opcode<'\x29'>() + modrm(reg1, reg2);
+    }
+    else {
+
+    }
+}
 
 // SUB m8,  r8  -- 28 /r
 // SUB m16, r16 -- 29 /r
@@ -391,17 +369,34 @@ constexpr auto SUB (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
     {
 	return rex<0>(mem, reg) + opcode<'\x28'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m16(mem) && is_r16(reg))
+    else if constexpr ((is_m16(mem) && is_r16(reg)) ||
+		       (is_m32(mem) && is_r32(reg)) ||
+		       (is_m64(mem) && is_r64(reg)))
     {
-	return rex<0>(mem, reg) + opcode<'\x29'>() + modrm(mem, reg);
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x29'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m32(mem) && is_r32(reg))
+    else {
+
+    }
+}
+
+// SUB r8,  m8  -- 2a /r
+// SUB r16, m16 -- 2b /r
+// SUB r32, m32 -- 2b /r
+// SUB r64, m64 -- REX.W + 2b /r
+template <size_t regsize, size_t i,
+	  size_t memsize, typename r1, typename r2,  typename scale, typename disp>
+constexpr auto SUB (Register<regsize, i> reg, Memory<memsize, r1, r2, scale, disp> mem)
+{
+    if constexpr (is_r8(reg) && is_m8(mem))
     {
-	return rex<0>(mem, reg) + opcode<'\x29'>() + modrm(mem, reg);
+	return rex<0>(mem, reg) + opcode<'\x2a'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m64(mem) && is_r64(reg))
+    else if constexpr ((is_r16(reg) && is_m16(mem)) ||
+		       (is_r32(reg) && is_m32(mem)) ||
+		       (is_r64(reg) && is_m64(mem)))
     {
-	return rex<1>(mem, reg) + opcode<'\x29'>() + modrm(mem, reg);
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x2b'>() + modrm(mem, reg);
     } 
     else {
 
