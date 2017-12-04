@@ -408,10 +408,53 @@ constexpr auto SUB (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
     }
 }
 
-// INC r8
-// INC r16
-// INC r32
-// INC r64
+// DEC r8  -- FE /1
+// DEC r16 -- FF /1
+// DEC r32 -- FF /1
+// DEC r64 -- REX.W + FF /1
+template <size_t s, size_t i>
+constexpr auto DEC (Register<s, i> reg)
+{
+    constexpr uint8_t digit = 1; 
+    if constexpr (is_r8(reg))
+    {
+	return rex<0>(reg) + opcode<'\xFE'>() + modrm<digit>(reg);
+    }
+    else if constexpr (is_r16(reg) || is_r32(reg) || is_r64(reg))
+    {
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\xFF'>() + modrm<digit>(reg);
+    }
+    else
+    {
+
+    }
+}
+
+// DEC m8  -- FE /1
+// DEC m16 -- FF /1
+// DEC m32 -- FF /1
+// DEC m64 -- REX.W + FF /1
+template <size_t memsize, typename r1, typename r2,  typename scale, typename disp>
+constexpr auto DEC (Memory<memsize, r1, r2, scale, disp> mem)
+{
+    constexpr uint8_t digit = 1;
+    if constexpr (is_m8(mem))
+    {
+	return rex<0, 0>(mem) + opcode<'\xFE'>() + modrm<digit>(mem);
+    } 
+    else if constexpr (is_m16(mem) || is_m32(mem) || is_m64(mem))
+    {
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
+    }
+    else {
+
+    }
+}
+
+// INC r8  -- FE /0
+// INC r16 -- FF /0
+// INC r32 -- FF /0
+// INC r64 -- REX.W + FF /0
 template <size_t s, size_t i>
 constexpr auto INC (Register<s, i> reg)
 {
@@ -430,10 +473,10 @@ constexpr auto INC (Register<s, i> reg)
     }
 }
 
-// INC m8
-// INC m16
-// INC m32
-// INC m64
+// INC m8  -- FE /0
+// INC m16 -- FF /0
+// INC m32 -- FF /0
+// INC m64 -- REX.W + FF /0
 template <size_t memsize, typename r1, typename r2,  typename scale, typename disp>
 constexpr auto INC (Memory<memsize, r1, r2, scale, disp> mem)
 {
@@ -444,7 +487,7 @@ constexpr auto INC (Memory<memsize, r1, r2, scale, disp> mem)
     } 
     else if constexpr (is_m16(mem) || is_m32(mem) || is_m64(mem))
     {
-	return rex<is_m64(mem)?1:0, digit>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\xFF'>() + modrm<digit>(mem);
     }
     else {
 
