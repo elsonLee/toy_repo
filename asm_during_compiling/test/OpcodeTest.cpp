@@ -99,25 +99,6 @@ TEST_CASE("various opcodes", "[opcode]") {
     }
 
     SECTION("XOR") {
-#if 0
-	XOR(r8,  r8);
-	XOR(m8,  r8);
-	XOR(r16, r16);
-	XOR(m16, r16);
-	XOR(r32, r32);
-	XOR(m32, r32);
-	XOR(r64, r64);
-	XOR(m64, r64);
-
-	XOR(r8,  r8);
-	XOR(r8,  m8);
-	XOR(r16, r16);
-	XOR(r16, m16);
-	XOR(r32, r32);
-	XOR(r32, m32);
-	XOR(r64, r64);
-	XOR(r64, m64);
-#endif
 	REQUIRE(XOR(bl, Imm8<0x12>)					 == BYTES(0x80, 0xf3, 0x12));
 	REQUIRE(XOR(b_[rsp + rbp * 2_x + Imm8<0x7f>], Imm8<0x12>)   	 == BYTES(0x80, 0x74, 0x6c, 0x7f, 0x12));
 	REQUIRE(XOR(bx, Imm8<0x12>)				    	 == BYTES(0x66, 0x83, 0xf3, 0x12));
@@ -132,5 +113,17 @@ TEST_CASE("various opcodes", "[opcode]") {
 	REQUIRE(XOR(q_[rsp + rbp * 2_x + Imm8<0x7f>], Imm8<0x12>)	 == BYTES(0x48, 0x83, 0x74, 0x6c, 0x7f, 0x12));
 	REQUIRE(XOR(rbx, Imm32<0x12345678>)				 == BYTES(0x48, 0x81, 0xf3, 0x78, 0x56, 0x34, 0x12));
 	REQUIRE(XOR(q_[rsp + rbp * 2_x + Imm8<0x7f>], Imm32<0x12345678>) == BYTES(0x48, 0x81, 0x74, 0x6c, 0x7f, 0x78, 0x56, 0x34, 0x12));
+	REQUIRE(XOR(bl, cl)						 == BYTES(0x30, 0xcb));
+	REQUIRE(XOR(b_[rsp + rbp * 2_x + Imm8<0x7f>], bl)  		 == BYTES(0x30, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(bx, cx)				   		 == BYTES(0x66, 0x31, 0xcb));
+	REQUIRE(XOR(w_[rsp + rbp * 2_x + Imm8<0x7f>], bx)  		 == BYTES(0x66, 0x31, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(ebx, ecx)				   		 == BYTES(0x31, 0xcb));
+	REQUIRE(XOR(d_[rsp + rbp * 2_x + Imm8<0x7f>], ebx) 		 == BYTES(0x31, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(rbx, rcx)				   		 == BYTES(0x48, 0x31, 0xcb));
+	REQUIRE(XOR(q_[rsp + rbp * 2_x + Imm8<0x7f>], rbx) 		 == BYTES(0x48, 0x31, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(bl, b_[rsp + rbp * 2_x + Imm8<0x7f>])  		 == BYTES(0x32, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(bx, w_[rsp + rbp * 2_x + Imm8<0x7f>])  		 == BYTES(0x66, 0x33, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(ebx, d_[rsp + rbp * 2_x + Imm8<0x7f>]) 		 == BYTES(0x33, 0x5c, 0x6c, 0x7f));
+	REQUIRE(XOR(rbx, q_[rsp + rbp * 2_x + Imm8<0x7f>]) 		 == BYTES(0x48, 0x33, 0x5c, 0x6c, 0x7f));
     }
 }
