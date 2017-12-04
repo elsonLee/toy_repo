@@ -216,9 +216,8 @@ constexpr auto modrm (Register<s1, i1>, Register<s2, i2>)
 }
 
 //! [rip + disp32] <--> imm
-template <uint8_t digit, size_t s, typename Displacement_type<4>::type d, bool disp_is_var,
-          size_t imms, typename Immediate_type<imms>::type x, bool imm_is_var>
-constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, disp_is_var>>, Immediate<imms, x, imm_is_var>)
+template <uint8_t digit, size_t s, typename Displacement_type<4>::type d, bool disp_is_var>
+constexpr auto modrm (Memory<s, NoReg, NoReg, NoScale, Disp32<d, disp_is_var>>)
 {
     return modrm<0b00, digit, 0b101>() + to_bytes(Disp32<d, disp_is_var>{});
 }
@@ -283,7 +282,7 @@ constexpr auto modrm (Memory<s, r1, r2, scale, disp>)
 	return modrm<digit>(Memory<s, r1, r2, scale, Disp8<0x0, false>>{});
     }
     else {
-	return modrm_base<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
+	return modrm<disp::mode, digit, 0b100>() + sib(mem{}) + to_bytes(disp{});
     }
 }
 
