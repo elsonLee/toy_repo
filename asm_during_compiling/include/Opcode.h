@@ -88,31 +88,31 @@ constexpr auto ADD (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     constexpr int digit = 0;
     if constexpr (is_m8(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm16(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm32(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm8(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm32(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
@@ -237,31 +237,31 @@ constexpr auto CMP (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     constexpr int digit = 7;
     if constexpr (is_m8(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm16(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm32(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm8(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm32(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
@@ -384,31 +384,31 @@ constexpr auto SUB (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     constexpr int digit = 5;
     if constexpr (is_m8(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm16(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm32(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm8(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm32(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
@@ -590,31 +590,31 @@ constexpr auto XOR (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     constexpr int digit = 6;
     if constexpr (is_m8(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m16(mem) && is_imm16(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm8(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m32(mem) && is_imm32(imm))
     {
-	return rex<0, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm8(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else if constexpr (is_m64(mem) && is_imm32(imm))
     {
-	return rex<1, 0>(mem, imm) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 

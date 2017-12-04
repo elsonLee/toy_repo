@@ -108,18 +108,6 @@ constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>)
     return prefix_67(mem{}) + prefix_66(mem{}) + rex<w, digit, 0, get_rex_b(r1{})>();
 }
 
-//NOTE: imm is not needed
-// rex [base + disp], imm
-template <uint8_t w, uint8_t digit, size_t s, typename r1, typename disp,
-	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
-constexpr auto rex (Memory<s, r1, NoReg, NoScale, disp>, Immediate<imms, x, is_var>)
-{
-    using mem = Memory<s, r1, NoReg, NoScale, disp>;
-    using imm = Immediate<imms, x, is_var>;
-    static_assert(mem::size >= imm::size);
-    return rex<w, digit>(mem{});
-}
-
 // figure 2-5.
 template <uint8_t w, size_t s1, size_t i1, size_t s2, size_t i2>
 constexpr auto rex (Register<s1, i1>, Register<s2, i2>)
