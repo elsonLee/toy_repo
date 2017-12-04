@@ -17,30 +17,18 @@ constexpr auto ADD (Register<s, i> reg, Immediate<imms, x, is_var> imm)
     {
 	return rex<0>(reg) + opcode<'\x80'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm8(imm))
+    else if constexpr ((is_r16(reg) && is_imm8(imm)) ||
+		       (is_r32(reg) && is_imm8(imm)) ||
+		       (is_r64(reg) && is_imm8(imm)))
     {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r16(reg) && is_imm16(imm))
+    else if constexpr ((is_r16(reg) && is_imm16(imm)) ||
+		       (is_r32(reg) && is_imm32(imm)) ||
+		       (is_r64(reg) && is_imm32(imm)))
     {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
     }
-    else if constexpr (is_r32(reg) && is_imm8(imm))
-    {
-	return rex<0>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r32(reg) && is_imm32(imm))
-    {
-	return rex<0>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm8(imm))
-    {
-	return rex<1>(reg) + opcode<'\x83'>() + modrm<digit>(reg) + to_bytes(imm);
-    }
-    else if constexpr (is_r64(reg) && is_imm32(imm))
-    {
-	return rex<1>(reg) + opcode<'\x81'>() + modrm<digit>(reg) + to_bytes(imm);
-    } 
     else {
 	//return Bytes<ByteArray<>, FlagArray<>>{};
     }
@@ -57,17 +45,11 @@ constexpr auto ADD (Register<s1, i1> reg1, Register<s2, i2> reg2)
     {
 	return rex<0>(reg1, reg2) + opcode<'\x00'>() + modrm(reg1, reg2);
     }
-    else if constexpr (is_r16(reg1) && is_r16(reg2))
+    else if constexpr ((is_r16(reg1) && is_r16(reg2)) ||
+		       (is_r32(reg1) && is_r32(reg2)) ||
+		       (is_r64(reg1) && is_r64(reg2)))
     {
-	return rex<0>(reg1, reg2) + opcode<'\x01'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r32(reg1) && is_r32(reg2))
-    {
-	return rex<0>(reg1, reg2) + opcode<'\x01'>() + modrm(reg1, reg2);
-    }
-    else if constexpr (is_r64(reg1) && is_r64(reg2))
-    {
-	return rex<1>(reg1, reg2) + opcode<'\x01'>() + modrm(reg1, reg2);
+	return rex<is_r64(reg1)?1:0>(reg1, reg2) + opcode<'\x01'>() + modrm(reg1, reg2);
     }
     else {
 	//return Bytes<ByteArray<>, FlagArray<>>{};
@@ -90,29 +72,17 @@ constexpr auto ADD (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_va
     {
 	return rex<0, 0>(mem) + opcode<'\x80'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm8(imm))
+    else if constexpr ((is_m16(mem) && is_imm8(imm)) ||
+		       (is_m32(mem) && is_imm8(imm)) ||
+		       (is_m64(mem) && is_imm8(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
-    else if constexpr (is_m16(mem) && is_imm16(imm))
+    else if constexpr ((is_m16(mem) && is_imm16(imm)) ||
+		       (is_m32(mem) && is_imm32(imm)) ||
+		       (is_m64(mem) && is_imm32(imm)))
     {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm8(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m32(mem) && is_imm32(imm))
-    {
-	return rex<0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm8(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x83'>() + modrm<digit>(mem) + to_bytes(imm);
-    } 
-    else if constexpr (is_m64(mem) && is_imm32(imm))
-    {
-	return rex<1, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<'\x81'>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else {
 
@@ -132,17 +102,11 @@ constexpr auto ADD (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, 
     {
 	return rex<0>(mem, reg) + opcode<'\x00'>() + modrm(mem, reg);
     } 
-    else if constexpr (is_m16(mem) && is_r16(reg))
+    else if constexpr ((is_m16(mem) && is_r16(reg)) ||
+		       (is_m32(mem) && is_r32(reg)) ||
+		       (is_m64(mem) && is_r64(reg)))
     {
-	return rex<0>(mem, reg) + opcode<'\x01'>() + modrm(mem, reg);
-    } 
-    else if constexpr (is_m32(mem) && is_r32(reg))
-    {
-	return rex<0>(mem, reg) + opcode<'\x01'>() + modrm(mem, reg);
-    } 
-    else if constexpr (is_m64(mem) && is_r64(reg))
-    {
-	return rex<1>(mem, reg) + opcode<'\x01'>() + modrm(mem, reg);
+	return rex<is_m64(mem)?1:0>(mem, reg) + opcode<'\x01'>() + modrm(mem, reg);
     } 
     else {
 
