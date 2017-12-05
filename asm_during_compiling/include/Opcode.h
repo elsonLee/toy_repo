@@ -1,13 +1,13 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
-// ADD_LIKE r8 , imm8  -- op1 /0 ib
-// ADD_LIKE r16, imm8  -- op2 /0 ib
-// ADD_LIKE r32, imm8  -- op2 /0 ib
-// ADD_LIKE r64, imm8  -- REX.W + op2 /0 ib
-// ADD_LIKE r16, imm16 -- op3 /0 iw
-// ADD_LIKE r32, imm32 -- op3 /0 id
-// ADD_LIKE r64, imm32 -- REX.W + op3 /0 id
+// ADD_LIKE r8 , imm8  -- op1 /digit ib
+// ADD_LIKE r16, imm8  -- op2 /digit ib
+// ADD_LIKE r32, imm8  -- op2 /digit ib
+// ADD_LIKE r64, imm8  -- REX.W + op2 /digit ib
+// ADD_LIKE r16, imm16 -- op3 /digit iw
+// ADD_LIKE r32, imm32 -- op3 /digit id
+// ADD_LIKE r64, imm32 -- REX.W + op3 /digit id
 template <uint8_t digit, uint8_t op_1, uint8_t op_2, uint8_t op_3,
 	  size_t s, size_t i,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
@@ -35,13 +35,13 @@ constexpr auto ADD_LIKE (Register<s, i> reg, Immediate<imms, x, is_var> imm)
     }
 }
 
-// ADD_LIKE m8,  imm8  -- op1 /0 ib
-// ADD_LIKE m16, imm8  -- op2 /0 ib
-// ADD_LIKE m32, imm8  -- op2 /0 ib
-// ADD_LIKE m64, imm8  -- REX.W + op2 /0 ib
-// ADD_LIKE m16, imm16 -- op3 /0 iw
-// ADD_LIKE m32, imm32 -- op3 /0 id
-// ADD_LIKE m64, imm32 -- REX.W + op3 /0 id
+// ADD_LIKE m8,  imm8  -- op1 /digit ib
+// ADD_LIKE m16, imm8  -- op2 /digit ib
+// ADD_LIKE m32, imm8  -- op2 /digit ib
+// ADD_LIKE m64, imm8  -- REX.W + op2 /digit ib
+// ADD_LIKE m16, imm16 -- op3 /digit iw
+// ADD_LIKE m32, imm32 -- op3 /digit id
+// ADD_LIKE m64, imm32 -- REX.W + op3 /digit id
 template <uint8_t digit, uint8_t op_1, uint8_t op_2, uint8_t op_3,
 	  size_t s, typename r1, typename r2,  typename scale, typename disp,
 	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
@@ -62,6 +62,31 @@ constexpr auto ADD_LIKE (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, 
 		       (is_m64(mem) && is_imm32(imm)))
     {
 	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<op_3>() + modrm<digit>(mem) + to_bytes(imm);
+    } 
+    else
+    {
+
+    }
+}
+
+// ADD_LIKE m8,  imm8  -- op1 /digit ib
+// ADD_LIKE m16, imm16 -- op2 /digit iw
+// ADD_LIKE m32, imm32 -- op2 /digit id
+// ADD_LIKE m64, imm64 -- REX.W + op2 /digit id
+template <uint8_t digit, uint8_t op_1, uint8_t op_2,
+	  size_t s, typename r1, typename r2,  typename scale, typename disp,
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto ADD_LIKE_SAME_SIZE (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_var> imm)
+{
+    if constexpr (is_m8(mem) && is_imm8(imm))
+    {
+	return rex<0, 0>(mem) + opcode<op_1>() + modrm<digit>(mem) + to_bytes(imm);
+    } 
+    else if constexpr ((is_m16(mem) && is_imm16(imm)) ||
+		       (is_m32(mem) && is_imm32(imm)) ||
+		       (is_m64(mem) && is_imm32(imm)))
+    {
+	return rex<is_m64(mem)?1:0, 0>(mem) + opcode<op_2>() + modrm<digit>(mem) + to_bytes(imm);
     } 
     else
     {
@@ -409,6 +434,110 @@ constexpr auto INC (Memory<memsize, r1, r2, scale, disp> mem)
 
     }
 }
+
+
+// JE rel8
+// JE rel32
+//template <size_t s, typename Immediate_type<imms>::type x, bool is_var>
+//constexpr auto JE (Immediate<s, x, is_var> imm)
+//{
+//    if constexpr (is_imm8(imm))
+//    {
+//	return opcode<'\x74'>() + to_bytes(imm);
+//    }
+//    else if constexpr (is_imm32(imm))
+//    {
+//	return opcode<'\x0f'>() + opcode<'\x84'>() + to_bytes(imm);
+//    }
+//    else
+//    {
+//
+//    }
+//}
+
+// JNE rel8
+// JNE rel32
+//template <size_t s, typename Immediate_type<imms>::type x, bool is_var>
+//constexpr auto JNE (Immediate<s, x, is_var> imm)
+//{
+//    if constexpr (is_imm8(imm))
+//    {
+//	return opcode<'\x75'>() + to_bytes(imm);
+//    }
+//    else if constexpr (is_imm32(imm))
+//    {
+//	return opcode<'\x0f'>() + opcode<'\x85'>() + to_bytes(imm);
+//    }
+//    else
+//    {
+//
+//    }
+//}
+
+// MOV r8,  imm8  -- c6 /0 ib
+// MOV r16, imm16 -- c7 /0 iw
+// MOV r32, imm32 -- c7 /0 id
+// MOV r64, imm64 -- REX.W + c7 /0 /id
+template <size_t s, size_t i,
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto MOV (Register<s, i> reg, Immediate<imms, x, is_var> imm)
+{
+    //return ADD_LIKE_SAME_SIZE<0, '\xc6', '\xc7'>(reg, imm);
+    if constexpr (is_r8(reg) && is_imm8(imm))
+    {
+	return rex<0>(reg) + opcode<'\xb0' + reg.index % 8>() + to_bytes(imm);
+    }
+    else if constexpr ((is_r16(reg) && is_imm16(imm)) ||
+		       (is_r32(reg) && is_imm32(imm)) ||
+		       (is_r64(reg) && is_imm64(imm)))
+    {
+	return rex<is_r64(reg)?1:0>(reg) + opcode<'\xb8' + reg.index % 8>() + to_bytes(imm);
+    }
+}
+
+// MOV m8,  imm8  -- c6 /0 ib
+// MOV m16, imm16 -- c7 /0 iw
+// MOV m32, imm32 -- c7 /0 id
+// MOV m64, imm32 -- REX.W + c7 /0 /id
+template <size_t s, typename r1, typename r2,  typename scale, typename disp,
+	  size_t imms, typename Immediate_type<imms>::type x, bool is_var>
+constexpr auto MOV (Memory<s, r1, r2, scale, disp> mem, Immediate<imms, x, is_var> imm)
+{
+    return ADD_LIKE_SAME_SIZE<0, '\xc6', '\xc7'>(mem, imm);
+}
+
+// MOV r8,  r8  -- 88 /r
+// MOV r16, r16 -- 89 /r
+// MOV r32, r32 -- 89 /r
+// MOV r64, r64 -- REX.W + 89 /r
+template <size_t s1, size_t i1, size_t s2, size_t i2>
+constexpr auto MOV (Register<s1, i1> reg1, Register<s2, i2> reg2)
+{
+    return ADD_LIKE<'\x88', '\x89'>(reg1, reg2);
+}
+
+// MOV m8,  r8  -- 88 /r
+// MOV m16, r16 -- 89 /r
+// MOV m32, r32 -- 89 /r
+// MOV m64, r64 -- REX.W + 89 /r
+template <size_t memsize, typename r1, typename r2,  typename scale, typename disp,
+	  size_t regsize, size_t i>
+constexpr auto MOV (Memory<memsize, r1, r2, scale, disp> mem, Register<regsize, i> reg)
+{
+    return ADD_LIKE<'\x88', '\x89'>(mem, reg);
+}
+
+// MOV r8,  m8  -- 8a /r
+// MOV r16, m16 -- 8b /r
+// MOV r32, m32 -- 8b /r
+// MOV r64, m64 -- REX.W + 8b /r
+template <size_t regsize, size_t i,
+	  size_t memsize, typename r1, typename r2,  typename scale, typename disp>
+constexpr auto MOV (Register<regsize, i> reg, Memory<memsize, r1, r2, scale, disp> mem)
+{
+    return ADD_LIKE<'\x8a', '\x8b'>(reg, mem);
+}
+
 
 //! SYSCALL
 constexpr auto SYSCALL ()
