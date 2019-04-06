@@ -254,35 +254,69 @@ class BinaryExprAST : public ExprAST {
 
 class CallExprAST : public ExprAST {
   public:
-    CallExprAST (const std::string& callee,
+    CallExprAST (const std::string& func_name,
                  std::vector<std::unique_ptr<ExprAST>> args) :
-      callee_(callee), args_(std::move(args)) {}
+      func_name_(func_name), args_(std::move(args)) {}
 
-    void print () override {}
+    void print () override {
+      printf("[call]%s(", func_name_.c_str());
+      if (!args_.empty()) {
+        args_[0]->print();
+      }
+      for (uint32_t i = 1; i < args_.size(); i++) {
+        printf(", ");
+        args_[i]->print();
+      }
+      printf(")");
+    }
 
   private:
-    std::string callee_;
+    std::string func_name_;
     std::vector<std::unique_ptr<ExprAST>> args_;
 };
 
-class PrototypeAST {
+class PrototypeAST : public ExprAST {
   public:
-    PrototypeAST (const std::string& name,
+    PrototypeAST (const std::string& func_name,
                  std::vector<std::string> args) :
-      name_(name), args_(std::move(args)) {}
+      func_name_(func_name), args_(std::move(args)) {}
 
-    const std::string& get_name () const { return name_; }
+    const std::string& get_name () const { return func_name_; }
+
+    void print () override {
+      printf("[proto]%s(", func_name_.c_str());
+      if (!args_.empty()) {
+        printf("%s", args_[0].c_str());
+      }
+      for (uint32_t i = 1; i < args_.size(); i++) {
+        printf(", %s", args_[i].c_str());
+      }
+      printf(")");
+    }
 
   private:
-    std::string name_;
+    std::string func_name_;
     std::vector<std::string> args_;
 };
 
-class FunctionAST {
+std::unique_ptr<PrototypeAST> LogErrorP (const char* msg) {
+  fprintf(stderr, "LogErrorP: %s\n", msg);
+  return nullptr;
+}
+
+class FunctionAST : public ExprAST {
   public:
     FunctionAST (std::unique_ptr<PrototypeAST> proto,
                  std::unique_ptr<ExprAST> body):
       proto_(std::move(proto)), body_(std::move(body)) {}
+
+    void print () override {
+      printf("[func]( ");
+      proto_->print();
+      printf(" ){ ");
+      body_->print();
+      printf(" }");
+    }
 
   private:
     std::unique_ptr<PrototypeAST> proto_;
@@ -301,14 +335,19 @@ class Parser {
         binary_op_pri_tbl_["<"] = 10;
       }
 
-    std::unique_ptr<ExprAST> parse_number_expr (const TokenPair& cur);
-    std::unique_ptr<ExprAST> parse_paren_expr (const TokenPair& cur);
-    std::unique_ptr<ExprAST> parse_identifier_expr (const TokenPair& cur);
+    std::unique_ptr<ExprAST> parse_number_expr ();
+    std::unique_ptr<ExprAST> parse_paren_expr ();
+    std::unique_ptr<ExprAST> parse_identifier_expr ();
 
     std::unique_ptr<ExprAST> parse_primary ();
 
     std::unique_ptr<ExprAST> parse_expression_l (std::unique_ptr<ExprAST> lhs, uint32_t min_precedence);
     std::unique_ptr<ExprAST> parse_expression ();
+    std::unique_ptr<FunctionAST> parse_top_level_expression ();
+
+    std::unique_ptr<PrototypeAST> parse_prototype ();
+    std::unique_ptr<PrototypeAST> parse_extern ();
+    std::unique_ptr<FunctionAST> parse_definition ();
 
     std::unique_ptr<ExprAST> parse ();
 
@@ -324,7 +363,8 @@ class Parser {
 
 #if 1
 // number_expr ::= number
-std::unique_ptr<ExprAST> Parser::parse_number_expr (const TokenPair& cur) {
+std::unique_ptr<ExprAST> Parser::parse_number_expr () {
+  auto cur = lexer_.get_token_and_forward();
   assert(cur.first == Token::Number);
   double val = std::stod(cur.second);
   auto result = std::make_unique<NumberExprAST>(val);
@@ -332,7 +372,8 @@ std::unique_ptr<ExprAST> Parser::parse_number_expr (const TokenPair& cur) {
 }
 
 // paren_expr ::= '(' expression ')'
-std::unique_ptr<ExprAST> Parser::parse_paren_expr (const TokenPair& cur) {
+std::unique_ptr<ExprAST> Parser::parse_paren_expr () {
+  auto cur = lexer_.get_token_and_forward();
   assert(cur.first == Token::Lparen);
   auto v = parse_expression();
   if (!v) {
@@ -350,7 +391,8 @@ std::unique_ptr<ExprAST> Parser::parse_paren_expr (const TokenPair& cur) {
 // identifier_expr
 //  ::= identifier
 //  ::= identifier '(' expression* ')'
-std::unique_ptr<ExprAST> Parser::parse_identifier_expr (const TokenPair& cur) {
+std::unique_ptr<ExprAST> Parser::parse_identifier_expr () {
+  auto cur = lexer_.get_token_and_forward();
   assert(cur.first == Token::Identifier);
   std::string identifier_name = cur.second;
 
@@ -391,15 +433,16 @@ std::unique_ptr<ExprAST> Parser::parse_identifier_expr (const TokenPair& cur) {
 //  ::= number_expr
 //  ::= paren_expr
 std::unique_ptr<ExprAST> Parser::parse_primary () {
-  auto cur = lexer_.get_token_and_forward();
+  auto cur = lexer_.get_token();
   switch (cur.first) {
     case Token::Identifier:
-      return parse_identifier_expr(cur);
+      return parse_identifier_expr();
     case Token::Number:
-      return parse_number_expr(cur);
+      return parse_number_expr();
     case Token::Lparen:
-      return parse_paren_expr(cur);
+      return parse_paren_expr();
     default:
+      printf("token: %s\n", to_string(cur).c_str());
       return LogError("unknown token when expecting an expression");
   }
 }
@@ -442,18 +485,83 @@ std::unique_ptr<ExprAST> Parser::parse_expression () {
   return parse_expression_l(std::move(lhs), 0);
 }
 
+// prototype
+//  ::= func_name '(' arg* ')'
+std::unique_ptr<PrototypeAST> Parser::parse_prototype () {
+  auto cur = lexer_.get_token_and_forward();
+  assert(cur.first == Token::Identifier);
+
+  auto func_name = cur.second;
+
+  auto lparen = lexer_.get_token_and_forward();
+  if (lparen.first != Token::Lparen) {
+    return LogErrorP("Expected '(' in prototype");
+  }
+
+  std::vector<std::string> args;
+  auto lookahead = lexer_.get_token_and_forward();
+  while (lookahead.first == Token::Identifier) {
+    args.emplace_back(lookahead.second);
+    lookahead = lexer_.get_token_and_forward();
+  }
+  //auto rparen = lexer_.get_token_and_forward();
+  if (lookahead.first != Token::Rparen) {
+    return LogErrorP("Expected ')' in prototype");
+  }
+
+  return std::make_unique<PrototypeAST>(func_name, std::move(args));
+}
+
+// function
+//  ::= 'def' prototype body
+std::unique_ptr<FunctionAST> Parser::parse_definition () {
+  auto cur = lexer_.get_token_and_forward();
+  assert(cur.first == Token::Def);
+
+  auto proto = parse_prototype();
+  if (!proto) {
+    return nullptr;
+  }
+
+  auto body = parse_expression();
+  if (body) {
+    return std::make_unique<FunctionAST>(std::move(proto), std::move(body));
+  } else {
+    return nullptr;
+  }
+}
+
+// extern
+//  ::= 'extern' prototype
+std::unique_ptr<PrototypeAST> Parser::parse_extern () {
+  auto cur = lexer_.get_token_and_forward();
+  assert(cur.first == Token::Extern);
+  return parse_prototype();
+}
+
+// expression wrap to function
+std::unique_ptr<FunctionAST> Parser::parse_top_level_expression () {
+  auto expr = parse_expression();
+  if (expr) {
+    auto proto = std::make_unique<PrototypeAST>("anonymous", std::vector<std::string>());
+    return std::make_unique<FunctionAST>(std::move(proto), std::move(expr));
+  } else {
+    return nullptr;
+  }
+}
+
 std::unique_ptr<ExprAST> Parser::parse () {
-  // TODO
-  //while (1) {
-  //  auto cur = lexer_.get_token();
-  //  switch (cur.first) {
-  //    case Token::Eof:
-  //      return nullptr;
-  //    default:
-  //      parse_expression();
-  //  }
-  //}
-  return parse_expression();
+  auto cur = lexer_.get_token();
+  switch (cur.first) {
+    case Token::Eof:
+      return nullptr;
+    case Token::Def:
+      return parse_definition();
+    case Token::Extern:
+      return parse_extern();
+    default:
+      return parse_expression();
+  }
 }
 #endif
 
@@ -469,9 +577,10 @@ int main () {
     std::string("      fib(x-1)+fib(x-2) \n") +
     std::string("# This expression will compute the 40th number. \n") +
     std::string("  fib(40)\n");
-#endif
+#else
   std::string code = 
-    std::string("  2+3*4-5\n");
+    std::string("  def foo(x y) x+y\n");
+#endif
 
   printf("code: %s\n", code.c_str());
 
