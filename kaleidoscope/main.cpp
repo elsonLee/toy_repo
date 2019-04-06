@@ -313,6 +313,11 @@ class Parser {
     std::unique_ptr<ExprAST> parse ();
 
   private:
+    uint32_t precedence (const std::string& val) {
+      return binary_op_pri_tbl_[val];
+    }
+
+  private:
     Lexer&  lexer_;
     std::unordered_map<std::string, uint32_t> binary_op_pri_tbl_;
 };
@@ -399,21 +404,28 @@ std::unique_ptr<ExprAST> Parser::parse_primary () {
   }
 }
 
+// https://en.wikipedia.org/wiki/Operator-precedence_parser
 std::unique_ptr<ExprAST> Parser::parse_expression_l (std::unique_ptr<ExprAST> lhs, uint32_t min_precedence) {
   auto lookahead = lexer_.get_token();
   while (lookahead.first == Token::BinaryOp &&
-         binary_op_pri_tbl_[lookahead.second] >= min_precedence) {
+         precedence(lookahead.second) >= min_precedence) {
     lexer_.get_token_and_forward();
     auto op = std::move(lookahead);
     auto rhs = parse_primary();
+    if (!rhs) {
+      return nullptr;
+    }
     lookahead = std::move(lexer_.get_token());
-    while (lookahead.first == Token::BinaryOp &&
-           binary_op_pri_tbl_[lookahead.second] >= binary_op_pri_tbl_[op.second]) {
-
-      rhs = std::move(parse_expression_l(std::move(rhs), binary_op_pri_tbl_[lookahead.second]));
-      lexer_.get_token_and_forward();
+    // lhs op_l (rhs op_h ...)
+    if (lookahead.first == Token::BinaryOp &&
+        precedence(lookahead.second) > precedence(op.second)) {
+      rhs = std::move(parse_expression_l(std::move(rhs), precedence(lookahead.second)));
+      if (!rhs) {
+        return nullptr;
+      }
       lookahead = std::move(lexer_.get_token());
     }
+    // (lhs op_h rhs) op_l ...
     lhs = std::make_unique<BinaryExprAST>(op.second, std::move(lhs), std::move(rhs));
   }
   return std::move(lhs);
@@ -432,15 +444,15 @@ std::unique_ptr<ExprAST> Parser::parse_expression () {
 
 std::unique_ptr<ExprAST> Parser::parse () {
   // TODO
-  while (1) {
-    auto cur = lexer_.get_token();
-    switch (cur.first) {
-      case Token::Eof:
-        return;
-      default:
-        parse_expression();
-    }
-  }
+  //while (1) {
+  //  auto cur = lexer_.get_token();
+  //  switch (cur.first) {
+  //    case Token::Eof:
+  //      return nullptr;
+  //    default:
+  //      parse_expression();
+  //  }
+  //}
   return parse_expression();
 }
 #endif
