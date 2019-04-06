@@ -6,7 +6,39 @@
 #include <vector>
 #include <unordered_map>
 
-#include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/APFloat.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Verifier.h>
+
+namespace Singleton {
+  llvm::LLVMContext& context () {
+    static llvm::LLVMContext context_;
+    return context_;
+  }
+
+  std::unordered_map<std::string, llvm::Value*>& named_values () {
+    static std::unordered_map<std::string, llvm::Value*> map_;
+    return map_;
+  }
+
+  llvm::IRBuilder<>& builder () {
+    static llvm::IRBuilder<> builder_(context());
+    return builder_;
+  }
+
+  std::unique_ptr<llvm::Module>& module_ptr () {
+    static std::unique_ptr<llvm::Module> module_ =
+      std::make_unique<llvm::Module>("my cool jit", context());
+    return module_;
+  }
+}
 
 enum class Token {
   Eof = 0,
@@ -196,7 +228,7 @@ TokenPair Lexer::get_token () {
 class ExprAST {
   public:
     virtual ~ExprAST() {}
-
+    virtual llvm::Value* codegen () { return nullptr; } // FIXME
     virtual void print () = 0;
 };
 
@@ -205,9 +237,18 @@ std::unique_ptr<ExprAST> LogError (const char* msg) {
   return nullptr;
 }
 
+llvm::Value* LogErrorV (const char* msg) {
+  fprintf(stderr, "LogErrorV: %s\n", msg);
+  return nullptr;
+}
+
 class NumberExprAST : public ExprAST {
   public:
     NumberExprAST (double val) : val_(val) {}
+
+    llvm::Value* codegen () override {
+      return llvm::ConstantFP::get(Singleton::context(), llvm::APFloat(val_));
+    }
 
     void print () override {
       printf("[num]%.1f", val_);
@@ -220,6 +261,14 @@ class NumberExprAST : public ExprAST {
 class VariableExprAST : public ExprAST {
   public:
     VariableExprAST (const std::string& name) : name_(name) {}
+
+    llvm::Value* codegen () override {
+      auto v = Singleton::named_values()[name_];
+      if (!v) {
+        LogErrorV("unknown variable name");
+      }
+      return v;
+    }
 
     void print () override {
       printf("[var]%s", name_.c_str());
@@ -239,6 +288,8 @@ class BinaryExprAST : public ExprAST {
       rhs_(std::move(rhs))
     {}
 
+    llvm::Value* codegen () override;
+
     void print () override {
       printf("[bop]%s(", op_.c_str());
       lhs_->print();
@@ -252,11 +303,37 @@ class BinaryExprAST : public ExprAST {
     std::unique_ptr<ExprAST> lhs_, rhs_;
 };
 
+llvm::Value* BinaryExprAST::codegen () {
+  auto* lhs = lhs_->codegen();
+  auto* rhs = rhs_->codegen();
+  if (!lhs || !rhs) {
+    return nullptr;
+  }
+
+  auto& builder = Singleton::builder();
+
+  switch (op_[0]) {
+    case '+': return builder.CreateFAdd(lhs, rhs, "add_node");
+    case '-': return builder.CreateFSub(lhs, rhs, "sub_node");
+    case '*': return builder.CreateFMul(lhs, rhs, "mul_node");
+    case '/': return builder.CreateFDiv(lhs, rhs, "div_node");
+    case '<':
+              lhs = builder.CreateFCmpULT(lhs, rhs, "cmp_node");
+              return builder.CreateUIToFP(lhs,
+                                          llvm::Type::getDoubleTy(Singleton::context()),
+                                          "bool_node");
+    default:
+              return LogErrorV("invalid binary operator");
+  }
+}
+
 class CallExprAST : public ExprAST {
   public:
     CallExprAST (const std::string& func_name,
                  std::vector<std::unique_ptr<ExprAST>> args) :
       func_name_(func_name), args_(std::move(args)) {}
+
+    llvm::Value* codegen () override;
 
     void print () override {
       printf("[call]%s(", func_name_.c_str());
@@ -275,6 +352,29 @@ class CallExprAST : public ExprAST {
     std::vector<std::unique_ptr<ExprAST>> args_;
 };
 
+llvm::Value* CallExprAST::codegen () {
+  llvm::Function* f = Singleton::module_ptr()->getFunction(func_name_);
+  if (!f) {
+    return LogErrorV("Unknown function referenced");
+  }
+
+  if (f->arg_size() != args_.size()) {
+    return LogErrorV("Incorrect # arguments passed");
+  }
+
+  std::vector<llvm::Value*> args_v;
+  for (uint32_t i = 0; i < args_.size(); i++) {
+    auto c = args_[i]->codegen();
+    if (c) {
+      args_v.push_back(c);
+    } else {
+      return nullptr;
+    }
+  }
+
+  return Singleton::builder().CreateCall(f, args_v, "call_node");
+}
+
 class PrototypeAST : public ExprAST {
   public:
     PrototypeAST (const std::string& func_name,
@@ -282,6 +382,8 @@ class PrototypeAST : public ExprAST {
       func_name_(func_name), args_(std::move(args)) {}
 
     const std::string& get_name () const { return func_name_; }
+
+    llvm::Function* codegen () override;
 
     void print () override {
       printf("[proto]%s(", func_name_.c_str());
@@ -299,6 +401,25 @@ class PrototypeAST : public ExprAST {
     std::vector<std::string> args_;
 };
 
+llvm::Function* PrototypeAST::codegen () {
+  auto& context = Singleton::context();
+  std::vector<llvm::Type*> doubles(args_.size(),
+                                   llvm::Type::getDoubleTy(context));
+
+  llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(context),
+                                                   doubles, false);
+
+  llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
+                                             func_name_,
+                                             Singleton::module_ptr().get());
+  uint32_t idx = 0;
+  for (auto& arg : f->args()) {
+    arg.setName(args_[idx++]);
+  }
+
+  return f;
+}
+
 std::unique_ptr<PrototypeAST> LogErrorP (const char* msg) {
   fprintf(stderr, "LogErrorP: %s\n", msg);
   return nullptr;
@@ -309,6 +430,8 @@ class FunctionAST : public ExprAST {
     FunctionAST (std::unique_ptr<PrototypeAST> proto,
                  std::unique_ptr<ExprAST> body):
       proto_(std::move(proto)), body_(std::move(body)) {}
+
+    llvm::Function* codegen () override;
 
     void print () override {
       printf("[func]( ");
@@ -322,6 +445,42 @@ class FunctionAST : public ExprAST {
     std::unique_ptr<PrototypeAST> proto_;
     std::unique_ptr<ExprAST> body_;
 };
+
+llvm::Function* FunctionAST::codegen () {
+  assert(proto_);
+  llvm::Function* f = Singleton::module_ptr()->getFunction(proto_->get_name());
+  if (!f) {
+    f = proto_->codegen();
+  }
+
+  if (!f) {
+    return nullptr;
+  }
+
+  if (!f->empty()) {
+    return (llvm::Function*)LogErrorV("Function cannot be redefined.");
+  }
+
+  llvm::BasicBlock* bb = llvm::BasicBlock::Create(Singleton::context(), "entry", f);
+
+  auto& builder = Singleton::builder();
+  builder.SetInsertPoint(bb);
+
+  auto& named_values = Singleton::named_values();
+  named_values.clear();
+  for (auto& arg : f->args()) {
+    named_values[arg.getName()] = &arg;
+  }
+
+  if (llvm::Value* ret = body_->codegen()) {
+    builder.CreateRet(ret);
+    llvm::verifyFunction(*f);
+    return f;
+  } else {
+    f->eraseFromParent();
+    return nullptr;
+  }
+}
 
 class Parser {
 
@@ -361,7 +520,6 @@ class Parser {
     std::unordered_map<std::string, uint32_t> binary_op_pri_tbl_;
 };
 
-#if 1
 // number_expr ::= number
 std::unique_ptr<ExprAST> Parser::parse_number_expr () {
   auto cur = lexer_.get_token_and_forward();
@@ -563,7 +721,45 @@ std::unique_ptr<ExprAST> Parser::parse () {
       return parse_expression();
   }
 }
+
+void parse (std::string& code) {
+  char* ptr = const_cast<char*>(code.data());
+  uint32_t len = code.size();
+
+  printf("Code: %s\n", code.c_str());
+
+  // lexer
+#if 0
+  printf("lex result:\n");
+  {
+    Lexer lexer(ptr, len);
+    while (1) {
+      auto p = lexer.get_token_and_forward();
+      printf("%s\n", to_string(p).c_str());
+      Token token = p.first;
+      if (token == Token::Eof || token == Token::Invalid) {
+        break;
+      }
+    }
+  }
+  printf("\n");
 #endif
+
+  printf("Parse:\n");
+  // parse
+  {
+    Lexer lexer(ptr, len);
+    Parser parser(lexer);
+    auto res = parser.parse();
+    res->print();
+    printf("\n");
+    printf("IR:\n");
+    auto* ir = res->codegen();
+    ir->print(llvm::errs());
+    printf("\n");
+  }
+  printf("========================\n");
+}
 
 int main () {
 
@@ -578,39 +774,19 @@ int main () {
     std::string("# This expression will compute the 40th number. \n") +
     std::string("  fib(40)\n");
 #else
-  std::string code = 
-    std::string("  def foo(x y) x+y\n");
+  std::vector<std::string> codes = {
+    std::string("4+5"),
+    std::string("def foo(a b) a*a + 2*a*b + b*b"),
+    std::string("def bar(a) foo(a, 4.0) + bar(31337)"),
+    std::string("extern cos(x)"),
+    std::string("cos(1.234)")
+  };
 #endif
 
-  printf("code: %s\n", code.c_str());
-
-  char* ptr = const_cast<char*>(code.data());
-  uint32_t len = code.size();
-
-  printf("lex result:\n");
-  // print lexer
-  {
-    Lexer lexer(ptr, len);
-    while (1) {
-      auto p = lexer.get_token_and_forward();
-      printf("%s\n", to_string(p).c_str());
-      Token token = p.first;
-      if (token == Token::Eof || token == Token::Invalid) {
-        break;
-      }
-    }
+  for (auto& str : codes) {
+    parse(str);
   }
-  printf("\n");
 
-  printf("parse result:\n");
-  // parse
-  {
-    Lexer lexer(ptr, len);
-    Parser parser(lexer);
-    auto res = parser.parse();
-    res->print();
-  }
-  printf("\n");
 
   return 0;
 }
