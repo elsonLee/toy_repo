@@ -16,6 +16,8 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/Scalar.h>
 
 namespace Singleton {
   llvm::LLVMContext& context () {
@@ -34,10 +36,26 @@ namespace Singleton {
   }
 
   std::unique_ptr<llvm::Module>& module_ptr () {
-    static std::unique_ptr<llvm::Module> module_ =
+    static auto module_ =
       std::make_unique<llvm::Module>("my cool jit", context());
     return module_;
   }
+
+  std::unique_ptr<llvm::legacy::FunctionPassManager>& fpm_ptr () {
+    auto& module_ptr = Singleton::module_ptr();
+    static auto fpm_ =
+      std::make_unique<llvm::legacy::FunctionPassManager>(module_ptr.get());
+    return fpm_;
+  }
+}
+
+void init_function_pass_manager () {
+  auto& fpm_ptr = Singleton::fpm_ptr();
+  fpm_ptr->add(llvm::createInstructionCombiningPass());
+  fpm_ptr->add(llvm::createReassociatePass());
+  fpm_ptr->add(llvm::createNewGVNPass());
+  fpm_ptr->add(llvm::createCFGSimplificationPass());
+  fpm_ptr->doInitialization();
 }
 
 enum class Token {
@@ -409,6 +427,7 @@ llvm::Function* PrototypeAST::codegen () {
   llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(context),
                                                    doubles, false);
 
+  // insert Function f into Module model_ptr
   llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
                                              func_name_,
                                              Singleton::module_ptr().get());
@@ -461,10 +480,11 @@ llvm::Function* FunctionAST::codegen () {
     return (llvm::Function*)LogErrorV("Function cannot be redefined.");
   }
 
+  // insert BasicBlock bb into Function f
   llvm::BasicBlock* bb = llvm::BasicBlock::Create(Singleton::context(), "entry", f);
 
-  auto& builder = Singleton::builder();
-  builder.SetInsertPoint(bb);
+  auto& builder = Singleton::builder();   
+  builder.SetInsertPoint(bb); // new instructions should be inserted into the end of the bb
 
   auto& named_values = Singleton::named_values();
   named_values.clear();
@@ -475,6 +495,7 @@ llvm::Function* FunctionAST::codegen () {
   if (llvm::Value* ret = body_->codegen()) {
     builder.CreateRet(ret);
     llvm::verifyFunction(*f);
+    Singleton::fpm_ptr()->run(*f);  // optimize
     return f;
   } else {
     f->eraseFromParent();
@@ -763,6 +784,8 @@ void parse (std::string& code) {
 
 int main () {
 
+  init_function_pass_manager();
+
 #if 0
   std::string code = 
     std::string("# Compute the x'th fibonacci number. \n") +
@@ -779,7 +802,9 @@ int main () {
     std::string("def foo(a b) a*a + 2*a*b + b*b"),
     std::string("def bar(a) foo(a, 4.0) + bar(31337)"),
     std::string("extern cos(x)"),
-    std::string("cos(1.234)")
+    std::string("cos(1.234)"),
+    std::string("def test(x) 1+2+x"),
+    std::string("def testToOpt(x) (1+2+x)*(x+(1+2))")
   };
 #endif
 
