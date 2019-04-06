@@ -228,7 +228,7 @@ TokenPair Lexer::get_token () {
 class ExprAST {
   public:
     virtual ~ExprAST() {}
-    virtual llvm::Value* codegen () { return nullptr; } // FIXME
+    virtual llvm::Value* codegen () = 0;
     virtual void print () = 0;
 };
 
