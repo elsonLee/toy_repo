@@ -19,6 +19,8 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Scalar.h>
 
+#include "header.h"
+
 namespace Singleton {
   llvm::LLVMContext& context () {
     static llvm::LLVMContext context_;
@@ -47,6 +49,17 @@ namespace Singleton {
       std::make_unique<llvm::legacy::FunctionPassManager>(module_ptr.get());
     return fpm_;
   }
+
+  std::unique_ptr<llvm::orc::KaleidoscopeJIT>& jit_ptr () {
+    static auto jit_ =
+      std::make_unique<llvm::orc::KaleidoscopeJIT>();
+    return jit_;
+  }
+}
+
+void init_module () {
+  Singleton::module_ptr()->setDataLayout(
+      Singleton::jit_ptr()->getTargetMachine().createDataLayout());
 }
 
 void init_function_pass_manager () {
@@ -722,7 +735,7 @@ std::unique_ptr<PrototypeAST> Parser::parse_extern () {
 std::unique_ptr<FunctionAST> Parser::parse_top_level_expression () {
   auto expr = parse_expression();
   if (expr) {
-    auto proto = std::make_unique<PrototypeAST>("anonymous", std::vector<std::string>());
+    auto proto = std::make_unique<PrototypeAST>("__anonymous", std::vector<std::string>());
     return std::make_unique<FunctionAST>(std::move(proto), std::move(expr));
   } else {
     return nullptr;
@@ -739,7 +752,7 @@ std::unique_ptr<ExprAST> Parser::parse () {
     case Token::Extern:
       return parse_extern();
     default:
-      return parse_expression();
+      return parse_top_level_expression();
   }
 }
 
@@ -747,7 +760,7 @@ void parse (std::string& code) {
   char* ptr = const_cast<char*>(code.data());
   uint32_t len = code.size();
 
-  printf("Code: %s\n", code.c_str());
+  printf("Code:\n%s\n", code.c_str());
 
   // lexer
 #if 0
@@ -767,23 +780,29 @@ void parse (std::string& code) {
 #endif
 
   printf("Parse:\n");
+  printf("========================\n");
   // parse
-  {
-    Lexer lexer(ptr, len);
-    Parser parser(lexer);
-    auto res = parser.parse();
+  Lexer lexer(ptr, len);
+  Parser parser(lexer);
+  while (auto res = parser.parse()) {
+    //auto res = parser.parse();
     res->print();
     printf("\n");
     printf("IR:\n");
     auto* ir = res->codegen();
     ir->print(llvm::errs());
     printf("\n");
+    printf("========================\n");
   }
-  printf("========================\n");
 }
 
 int main () {
 
+  LLVMInitializeNativeTarget();
+  LLVMInitializeNativeAsmPrinter();
+  LLVMInitializeNativeAsmParser();
+
+  init_module();
   init_function_pass_manager();
 
 #if 0
@@ -797,20 +816,31 @@ int main () {
     std::string("# This expression will compute the 40th number. \n") +
     std::string("  fib(40)\n");
 #else
-  std::vector<std::string> codes = {
-    std::string("4+5"),
-    std::string("def foo(a b) a*a + 2*a*b + b*b"),
-    std::string("def bar(a) foo(a, 4.0) + bar(31337)"),
-    std::string("extern cos(x)"),
-    std::string("cos(1.234)"),
-    std::string("def test(x) 1+2+x"),
-    std::string("def testToOpt(x) (1+2+x)*(x+(1+2))")
-  };
+  //std::vector<std::string> codes = {
+  //  std::string("4+5"),
+  //  std::string("def foo(a b) a*a + 2*a*b + b*b"),
+  //  std::string("def bar(a) foo(a, 4.0) + bar(31337)"),
+  //  std::string("extern cos(x)"),
+  //  std::string("cos(1.234)"),
+  //  std::string("def test(x) 1+2+x"),
+  //  std::string("def testToOpt(x) (1+2+x)*(x+(1+2))")
+  //};
+  std::string codes =
+    //std::string("4+5\n") +
+    //std::string("def foo(a b) a*a + 2*a*b + b*b\n") +
+    //std::string("def bar(a) foo(a, 4.0) + bar(31337)\n") +
+    //std::string("extern cos(x)\n") +
+    //std::string("cos(1.234)\n") +
+    //std::string("def test(x) 1+2+x\n") +
+    std::string("def testToOpt(x) (1+2+x)*(x+(1+2))\n") +
+    std::string("testToOpt(1)\n");
 #endif
 
-  for (auto& str : codes) {
-    parse(str);
-  }
+  //for (auto& str : codes) {
+  //  parse(str);
+  //}
+  
+  parse(codes);
 
 
   return 0;
